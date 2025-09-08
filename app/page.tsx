@@ -10,7 +10,7 @@ type AppInput = {
   cpu: number;
   gpu: number;
   ram: number;
-  minReplicas?: number; // <-- Add this line
+  minReplicas: number; // <-- Remove the optional '?'
   replicas: number;
   plan?: PlanType;
 };
