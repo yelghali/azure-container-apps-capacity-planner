@@ -138,6 +138,20 @@ function getDedicatedNodesPerApp(apps: AppInput[]): {
   return { nodeType, perAppNodes, nodes, assignment };
 }
 
+// Add this function before Home()
+function validateAppInput(app: AppInput, planChoice: PlanChoice): string | null {
+  // Only validate for Consumption plan (either global or per-app in Mix)
+  const isConsumption =
+    planChoice === "Consumption" ||
+    (planChoice === "Mix" && app.plan === "Consumption");
+  if (isConsumption) {
+    if (app.cpu > 4) return "CPU must not exceed 4 for Consumption plan.";
+    if (app.ram > 8) return "RAM must not exceed 8GB for Consumption plan.";
+    if (app.gpu > 0) return "GPU is not supported for Consumption plan.";
+  }
+  return null;
+}
+
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
     { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1, plan: "Consumption" },
@@ -146,6 +160,7 @@ export default function Home() {
   const [planChoice, setPlanChoice] = useState<PlanChoice>("Consumption");
   const [result, setResult] = useState<any>(null);
   const [showNodeInfo, setShowNodeInfo] = useState(false);
+  const [inputErrors, setInputErrors] = useState<string[]>([]);
 
   const availableIPs = getAvailableIPs(subnetSize);
 
@@ -316,6 +331,14 @@ export default function Home() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Validate all apps
+    const errors: string[] = [];
+    apps.forEach((app, idx) => {
+      const err = validateAppInput(app, planChoice);
+      if (err) errors.push(`App ${app.name || idx + 1}: ${err}`);
+    });
+    setInputErrors(errors);
+    if (errors.length > 0) return;
     setResult(calculate(apps, subnetSize, planChoice));
   };
 
@@ -683,6 +706,16 @@ export default function Home() {
           </button>
         </div>
       </form>
+      {inputErrors.length > 0 && (
+        <div style={{ background: "#ffeded", color: "#c00", borderRadius: 6, padding: 12, marginBottom: 16 }}>
+          <strong>Input Error{inputErrors.length > 1 ? "s" : ""}:</strong>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {inputErrors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {result && (
         <div
           style={{
@@ -695,23 +728,40 @@ export default function Home() {
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <h2>Results</h2>
-            <a
-              href="https://learn.microsoft.com/en-us/azure/container-apps/workload-profiles-overview#profile-types"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                background: "#0078d4",
-                color: "#fff",
-                padding: "6px 16px",
-                borderRadius: 6,
-                textDecoration: "none",
-                fontWeight: 600,
-                fontSize: 15,
-                marginLeft: 16,
-              }}
-            >
-              View Azure SKUs Documentation
-            </a>
+            <div style={{ display: "flex", gap: 10 }}>
+              <a
+                href="https://learn.microsoft.com/en-us/azure/container-apps/workload-profiles-overview#profile-types"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  background: "#0078d4",
+                  color: "#fff",
+                  padding: "6px 16px",
+                  borderRadius: 6,
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  fontSize: 15,
+                }}
+              >
+                View Azure SKUs Documentation
+              </a>
+              <a
+                href="https://learn.microsoft.com/en-us/azure/container-apps/custom-virtual-networks?tabs=workload-profiles-env#subnet"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  background: "#0078d4",
+                  color: "#fff",
+                  padding: "6px 16px",
+                  borderRadius: 6,
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  fontSize: 15,
+                }}
+              >
+                Plan IP Addresses
+              </a>
+            </div>
           </div>
           {result.warning && (
             <p style={{ color: "#c00", fontWeight: 500 }}>{result.warning}</p>
