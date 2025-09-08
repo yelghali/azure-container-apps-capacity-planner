@@ -89,6 +89,49 @@ function packDedicatedNodes(apps: AppInput[]) {
   return { nodeType, nodes, assignment };
 }
 
+function getDedicatedNodesPerApp(apps: AppInput[]) {
+  // Find the smallest node type that fits the largest per-replica requirements
+  let maxCpu = 0, maxRam = 0, maxGpu = 0;
+  apps.forEach(app => {
+    maxCpu = Math.max(maxCpu, app.cpu);
+    maxRam = Math.max(maxRam, app.ram);
+    maxGpu = Math.max(maxGpu, app.gpu);
+  });
+  const nodeType = DEDICATED_NODE_TYPES.find(
+    node => node.cpu >= maxCpu && node.ram >= maxRam && node.gpu >= maxGpu
+  );
+  if (!nodeType) return { nodeType: null, perAppNodes: {}, nodes: 0, assignment: [] };
+
+  let remaining = apps.map(app => ({ ...app }));
+  let nodes = 0;
+  let assignment: { node: number, apps: { name: string, replicas: number }[] }[] = [];
+  let perAppNodes: Record<string, number> = {};
+  while (remaining.some(app => app.replicas > 0)) {
+    let nodeCpu = nodeType.cpu, nodeRam = nodeType.ram, nodeGpu = nodeType.gpu;
+    let nodeApps: { name: string, replicas: number }[] = [];
+    for (let i = 0; i < remaining.length; i++) {
+      let app = remaining[i];
+      let fit = Math.min(
+        app.replicas,
+        Math.floor(nodeCpu / app.cpu),
+        Math.floor(nodeRam / app.ram),
+        app.gpu > 0 ? Math.floor(nodeGpu / app.gpu) : Infinity
+      );
+      if (fit > 0) {
+        nodeApps.push({ name: app.name || `(App ${i + 1})`, replicas: fit });
+        nodeCpu -= fit * app.cpu;
+        nodeRam -= fit * app.ram;
+        nodeGpu -= fit * app.gpu;
+        app.replicas -= fit;
+        perAppNodes[app.name || `(App ${i + 1})`] = (perAppNodes[app.name || `(App ${i + 1})`] || 0) + 1;
+      }
+    }
+    assignment.push({ node: nodes + 1, apps: nodeApps });
+    nodes++;
+  }
+  return { nodeType, perAppNodes, nodes, assignment };
+}
+
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
     { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1, plan: "Consumption" },
@@ -189,10 +232,11 @@ export default function Home() {
       };
     } else {
       // Dedicated
-      const packed = packDedicatedNodes(apps);
+      const packed = getDedicatedNodesPerApp(apps);
       let nodeType = packed.nodeType;
       let nodes = packed.nodes;
       let assignment = packed.assignment;
+      let perAppNodes = packed.perAppNodes;
       totalIPs += nodes;
       details = nodeType
         ? `Node type: ${nodeType.name}, Nodes needed: ${nodes}`
@@ -202,7 +246,7 @@ export default function Home() {
           name: app.name || "(unnamed)",
           plan: nodeType ? `Dedicated (${nodeType.name})` : "Dedicated (N/A)",
           replicas: app.replicas,
-          ipUsed: "-", // shown in node summary
+          ipUsed: perAppNodes[app.name] || 0,
           nodeType: nodeType ? nodeType.name : "-",
           nodes: nodes,
         });
