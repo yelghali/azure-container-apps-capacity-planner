@@ -1077,14 +1077,28 @@ export default function Home() {
                   </tbody>
                 </table>
                 {/* Add upgrade details summary here */}
-                {dedUpgrade.perApp.length > 0 && (
+                {(consRows.length > 0 || dedUpgrade.perApp.length > 0) && (
                   <p style={{ marginTop: 8 }}>
                     <strong>Details:</strong>{" "}
-                    {dedUpgrade.perApp
-                      .map(
-                        a =>
-                          `${a.appName}: ${a.nodesNeeded} x ${a.nodeTypeName} (up to ${a.perNodeCapacity} per node)`
-                      )
+                    {[
+                      consRows.length > 0
+                        ? consRows
+                            .map(
+                              row =>
+                                `${row.name}: ${row.ipUsed} IPs (Consumption, ${row.minReplicas} replicas)`
+                            )
+                            .join("; ")
+                        : null,
+                      dedUpgrade.perApp.length > 0
+                        ? dedUpgrade.perApp
+                            .map(
+                              a =>
+                                `${a.appName}: ${a.nodesNeeded} x ${a.nodeTypeName} (up to ${a.perNodeCapacity} per node)`
+                            )
+                            .join("; ")
+                        : null,
+                    ]
+                      .filter(Boolean)
                       .join("; ")}
                   </p>
                 )}
