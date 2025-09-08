@@ -878,110 +878,56 @@ export default function Home() {
               ))}
             </tbody>
           </table>
-          {/* Zero-downtime (Upgrade Phase) Results */}
-          <h3 style={{ marginTop: 32 }}>Zero-downtime (Upgrade Phase) Results</h3>
-          {(() => {
-            // Split apps for Mix, or use all for other plans
-            let consApps: AppInput[] = [];
-            let dedApps: AppInput[] = [];
-            if (result.plan === "Mix") {
-              consApps = apps.filter(a => a.plan === "Consumption");
-              dedApps = apps.filter(a => a.plan === "Dedicated");
-            } else if (result.plan === "Consumption") {
-              consApps = apps;
-            } else if (result.plan === "Dedicated") {
-              dedApps = apps;
-            }
-
-            // Consumption: IPs = ceil(minReplicas/10) per app
-            const consRows = consApps.map((app, i) => ({
-              name: app.name || `(App ${i + 1})`,
-              plan: "Consumption",
-              minReplicas: app.minReplicas,
-              ipUsed: Math.ceil(app.minReplicas / 10),
-            }));
-            const consIPs = consRows.reduce((sum, row) => sum + row.ipUsed, 0);
-
-            // Dedicated: bin-pack using minReplicas
-            let dedPacked = { nodeType: null, nodes: 0, assignment: [] as any[] };
-            if (dedApps.length > 0) {
-              dedPacked = packNodesForUpgrade(dedApps);
-            }
-
-            // Total IPs for upgrade phase
-            const upgradeIPs = consIPs + (dedPacked.nodes || 0);
-
-            return (
-              <>
-                {dedPacked.assignment.length > 0 && dedPacked.nodeType && (
-                  <div style={{ marginTop: 12 }}>
-                    <strong>Node Packing (Dedicated, Upgrade Phase):</strong>
-                    <ul>
-                      {dedPacked.assignment.map((node: any) => (
-                        <li key={node.node}>
-                          Node {node.node} ({dedPacked.nodeType.name}):{" "}
-                          <span style={{ color: "#0078d4" }}>
-                            [CPU: {dedPacked.nodeType.cpu}, RAM: {dedPacked.nodeType.ram}GB, GPU: {dedPacked.nodeType.gpu}]
-                          </span>
-                          {" — "}
-                          {node.apps.map((a: any) => `${a.replicas} x ${a.name}`).join(", ")}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ background: "#e6f0fa" }}>
-                      <th style={thStyle}>App Name</th>
-                      <th style={thStyle}>Assigned Plan</th>
-                      <th style={thStyle}>Replicas (Min)</th>
-                      <th style={thStyle}>Node(s) Assigned (Min)</th>
-                      <th style={thStyle}>IPs Used</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Consumption rows */}
-                    {consRows.map((row, i) => (
-                      <tr key={`cons-${i}`}>
-                        <td style={tdStyle}>{row.name}</td>
-                        <td style={tdStyle}>{row.plan}</td>
-                        <td style={tdStyle}>{row.minReplicas}</td>
-                        <td style={tdStyle}>-</td>
-                        <td style={tdStyle}>{row.ipUsed}</td>
-                      </tr>
-                    ))}
-                    {/* Dedicated rows */}
-                    {dedApps.map((app, i) => {
-                      // Find node assignments for this app in dedPacked
-                      const nodeAssignments: string[] = [];
-                      dedPacked.assignment.forEach((node: any) => {
-                        node.apps.forEach((a: any) => {
-                          if (a.name === (app.name || `(App ${i + 1})`)) {
-                            for (let r = 0; r < a.replicas; r++) {
-                              nodeAssignments.push(`Node ${node.node} (${dedPacked.nodeType?.name})`);
-                            }
-                          }
-                        });
-                      });
-                      return (
-                        <tr key={`ded-${i}`}>
-                          <td style={tdStyle}>{app.name}</td>
-                          <td style={tdStyle}>{dedPacked.nodeType ? `Dedicated (${dedPacked.nodeType.name})` : "Dedicated (N/A)"}</td>
-                          <td style={tdStyle}>{app.minReplicas}</td>
-                          <td style={tdStyle}>{nodeAssignments.length > 0 ? nodeAssignments.join(", ") : "-"}</td>
-                          <td style={tdStyle}>{dedPacked.nodes > 0 ? "-" : "-"}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                <p style={{ marginTop: 12 }}>
-                  <strong>Estimated IPs Used During Upgrades (Zero-downtime, based on Min Replicas):</strong> {upgradeIPs}
-                </p>
-              </>
-            );
-          })()}
+          {/* ...existing code for Zero-downtime (doubled) Results Table */}
+          <h3 style={{ marginTop: 32 }}>Zero-downtime (Temporary Doubled) Results</h3>
+          {/* Dedicated node packing for zero-downtime */}
+          {result.assignment && result.nodeType && (
+            <>
+              <div style={{ marginTop: 12 }}>
+                <strong>Node Packing (Dedicated, Doubled):</strong>
+                <ul>
+                  {result.assignment.map((node: any) => (
+                    <li key={node.node}>
+                      Node {node.node} ({result.nodeType.name}):{" "}
+                      <span style={{ color: "#0078d4" }}>
+                        [CPU: {result.nodeType.cpu}, RAM: {result.nodeType.ram}GB, GPU: {result.nodeType.gpu}]
+                      </span>
+                      {" — "}
+                      {node.apps.map((a: any) => `${a.replicas * 2} x ${a.name}`).join(", ")}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+          {/* Always show zero-downtime results table */}
+          <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#e6f0fa" }}>
+                <th style={thStyle}>App Name</th>
+                <th style={thStyle}>Assigned Plan</th>
+                <th style={thStyle}>Replicas (Min)</th>
+                <th style={thStyle}>Node(s) Assigned (Min)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.appAssignments.map((a: any, i: number) => (
+                <tr key={i}>
+                  <td style={tdStyle}>{a.name}</td>
+                  <td style={tdStyle}>{a.plan}</td>
+                  <td style={tdStyle}>{a.minReplicas}</td>
+                  <td style={tdStyle}>
+                    {a.nodesAssigned
+                      ? a.nodesAssigned
+                      : a.nodeType === "-" || a.nodes === "-"
+                      ? "-"
+                      : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {/* ...existing code... */}
         </div>
       )}
       {/* ...existing code... */}
@@ -1008,13 +954,3 @@ const inputStyle: React.CSSProperties = {
   fontSize: 15,
   boxSizing: "border-box",
 };
-
-// Helper for upgrade phase: bin-pack using minReplicas for Dedicated apps
-function packNodesForUpgrade(apps: AppInput[]) {
-  // For Dedicated, bin-pack using minReplicas
-  const minApps = apps.map(app => ({
-    ...app,
-    replicas: app.minReplicas,
-  }));
-  return packDedicatedNodes(minApps);
-}
