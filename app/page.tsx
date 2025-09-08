@@ -10,6 +10,7 @@ type AppInput = {
   cpu: number;
   gpu: number;
   ram: number;
+  minReplicas: number; // <-- add this
   replicas: number;
   plan?: PlanType;
 };
@@ -179,7 +180,7 @@ function getAppNodeAssignments(
 
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
-    { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1, plan: "Consumption" },
+    { name: "", cpu: 0, gpu: 0, ram: 0, minReplicas: 1, replicas: 1, plan: "Consumption" },
   ]);
   const [subnetSize, setSubnetSize] = useState("");
   const [planChoice, setPlanChoice] = useState<PlanChoice>("Consumption");
@@ -198,16 +199,16 @@ export default function Home() {
       warning = "Minimum subnet size for integration is /27!";
     }
 
-    // Remove infra IPs from calculation, since availableIPs already subtracts 14
     let totalIPs = 0;
     let appAssignments: any[] = [];
     let details = "";
 
+    // Calculate doubled IPs based on minReplicas
+    const totalMinReplicas = apps.reduce((sum, app) => sum + (app.minReplicas || 1), 0);
+
     if (planChoice === "Mix") {
-      // Split apps by plan
       const consApps = apps.filter(a => a.plan === "Consumption");
       const dedApps = apps.filter(a => a.plan === "Dedicated");
-      // Consumption
       let consIPs = 0;
       consApps.forEach(app => {
         let ipUsed = Math.ceil(app.replicas / 10);
@@ -216,12 +217,12 @@ export default function Home() {
           name: app.name || "(unnamed)",
           plan: "Consumption",
           replicas: app.replicas,
+          minReplicas: app.minReplicas,
           ipUsed,
           nodeType: "-",
           nodes: "-",
         });
       });
-      // Dedicated
       let dedIPs = 0;
       let nodeType: typeof DEDICATED_NODE_TYPES[number] | null = null, nodes = 0, assignment: { node: number, apps: { name: string, replicas: number }[] }[] = [];
       if (dedApps.length > 0) {
@@ -235,7 +236,8 @@ export default function Home() {
             name: app.name || "(unnamed)",
             plan: nodeType ? `Dedicated (${nodeType.name})` : "Dedicated (N/A)",
             replicas: app.replicas,
-            ipUsed: "-", // shown in node summary
+            minReplicas: app.minReplicas,
+            ipUsed: "-",
             nodeType: nodeType ? nodeType.name : "-",
             nodes: nodes,
           });
@@ -246,13 +248,14 @@ export default function Home() {
       return {
         plan: "Mix",
         ips: totalIPs,
-        doubledIPs: totalIPs * 2,
+        doubledIPs: consApps.reduce((sum, app) => sum + Math.ceil((app.minReplicas || 1) / 10), 0) + dedIPs, // for zero-downtime, use minReplicas for IPs
         details,
         appAssignments,
         warning,
         nodeType,
         nodes,
         assignment,
+        minReplicas: totalMinReplicas,
       };
     } else if (planChoice === "Consumption") {
       let consIPs = 0;
@@ -263,20 +266,22 @@ export default function Home() {
           name: app.name || "(unnamed)",
           plan: "Consumption",
           replicas: app.replicas,
+          minReplicas: app.minReplicas,
           ipUsed,
           nodeType: "-",
           nodes: "-",
         });
       });
-      totalIPs = consIPs;
-      details = `Consumption apps: ${apps.length}`;
+      // For zero-downtime, use minReplicas for each app
+      const doubledIPs = apps.reduce((sum, app) => sum + Math.ceil((app.minReplicas || 1) / 10), 0);
       return {
         plan: "Consumption",
-        ips: totalIPs,
-        doubledIPs: totalIPs * 2,
-        details,
+        ips: consIPs,
+        doubledIPs,
+        details: `Consumption apps: ${apps.length}`,
         appAssignments,
         warning,
+        minReplicas: totalMinReplicas,
       };
     } else {
       // Dedicated
@@ -285,7 +290,6 @@ export default function Home() {
       let nodes = packed.nodes;
       let assignment = packed.assignment;
       let perAppNodes = packed.perAppNodes;
-      // Map app name to list of node numbers it is assigned to
       const appNodeMap: Record<string, number[]> = {};
       assignment.forEach((node) => {
         node.apps.forEach((a) => {
@@ -293,29 +297,30 @@ export default function Home() {
           appNodeMap[a.name].push(node.node);
         });
       });
-      totalIPs = nodes;
-      details = nodeType
-        ? `Node type: ${nodeType.name}, Nodes needed: ${nodes}`
-        : "No suitable node type found for app requirements.";
       apps.forEach(app => {
         const appKey = app.name || "(unnamed)";
         appAssignments.push({
           name: appKey,
           plan: nodeType ? `Dedicated (${nodeType.name})` : "Dedicated (N/A)",
           replicas: app.replicas,
+          minReplicas: app.minReplicas,
           nodesAssigned: appNodeMap[appKey]?.map(n => `Node ${n} (${nodeType?.name})`).join(", ") || "-",
         });
       });
+      // For zero-downtime, use minReplicas for each app
       return {
         plan: "Dedicated",
-        ips: totalIPs,
-        doubledIPs: totalIPs * 2,
-        details,
+        ips: nodes,
+        doubledIPs: apps.reduce((sum, app) => sum + (app.minReplicas || 1), 0),
+        details: nodeType
+          ? `Node type: ${nodeType.name}, Nodes needed: ${nodes}`
+          : "No suitable node type found for app requirements.",
         appAssignments,
         warning: nodeType ? undefined : "No suitable node type found for app requirements.",
         nodeType,
         nodes,
         assignment,
+        minReplicas: totalMinReplicas,
       };
     }
   }
@@ -344,6 +349,7 @@ export default function Home() {
         cpu: 0,
         gpu: 0,
         ram: 0,
+        minReplicas: 1,
         replicas: 1,
         plan: planChoice === "Mix" ? "Consumption" : undefined,
       },
@@ -565,6 +571,7 @@ export default function Home() {
               <th style={thStyle}>CPU</th>
               <th style={thStyle}>GPU</th>
               <th style={thStyle}>RAM (GB)</th>
+              <th style={thStyle}>Min Replicas</th>
               <th style={thStyle}>Max Replicas</th>
               {planChoice === "Mix" && <th style={thStyle}>Plan</th>}
               <th style={thStyle}></th>
@@ -574,9 +581,6 @@ export default function Home() {
             {apps.map((app, idx) => (
               <tr key={idx}>
                 <td style={tdStyle}>
-                  <label className="sr-only" htmlFor={`name-${idx}`}>
-                    Name
-                  </label>
                   <input
                     id={`name-${idx}`}
                     type="text"
@@ -589,9 +593,6 @@ export default function Home() {
                   />
                 </td>
                 <td style={tdStyle}>
-                  <label className="sr-only" htmlFor={`cpu-${idx}`}>
-                    CPU
-                  </label>
                   <input
                     id={`cpu-${idx}`}
                     type="number"
@@ -606,9 +607,6 @@ export default function Home() {
                   />
                 </td>
                 <td style={tdStyle}>
-                  <label className="sr-only" htmlFor={`gpu-${idx}`}>
-                    GPU
-                  </label>
                   <input
                     id={`gpu-${idx}`}
                     type="number"
@@ -623,9 +621,6 @@ export default function Home() {
                   />
                 </td>
                 <td style={tdStyle}>
-                  <label className="sr-only" htmlFor={`ram-${idx}`}>
-                    RAM (GB)
-                  </label>
                   <input
                     id={`ram-${idx}`}
                     type="number"
@@ -640,9 +635,20 @@ export default function Home() {
                   />
                 </td>
                 <td style={tdStyle}>
-                  <label className="sr-only" htmlFor={`replicas-${idx}`}>
-                    Max Replicas
-                  </label>
+                  <input
+                    id={`minReplicas-${idx}`}
+                    type="number"
+                    value={app.minReplicas}
+                    min={1}
+                    step={1}
+                    onChange={(e) =>
+                      handleAppChange(idx, "minReplicas", e.target.value)
+                    }
+                    required
+                    style={inputStyle}
+                  />
+                </td>
+                <td style={tdStyle}>
                   <input
                     id={`replicas-${idx}`}
                     type="number"
@@ -900,8 +906,8 @@ export default function Home() {
               <tr style={{ background: "#e6f0fa" }}>
                 <th style={thStyle}>App Name</th>
                 <th style={thStyle}>Assigned Plan</th>
-                <th style={thStyle}>Replicas (Doubled)</th>
-                <th style={thStyle}>Node(s) Assigned (Doubled)</th>
+                <th style={thStyle}>Replicas (Min)</th>
+                <th style={thStyle}>Node(s) Assigned (Min)</th>
               </tr>
             </thead>
             <tbody>
@@ -909,7 +915,7 @@ export default function Home() {
                 <tr key={i}>
                   <td style={tdStyle}>{a.name}</td>
                   <td style={tdStyle}>{a.plan}</td>
-                  <td style={tdStyle}>{a.replicas * 2}</td>
+                  <td style={tdStyle}>{a.minReplicas}</td>
                   <td style={tdStyle}>
                     {a.nodesAssigned
                       ? a.nodesAssigned
