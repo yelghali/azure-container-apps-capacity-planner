@@ -209,6 +209,9 @@ export default function Home() {
                 }`
               : ""}
           </span>
+          <span style={{ color: "#666", fontSize: 13, marginLeft: 8 }}>
+            (Available IPs = 2<sup>(32 - subnet bits)</sup> - 14)
+          </span>
         </div>
         <h2 style={{ marginBottom: 12 }}>Apps</h2>
         <table
