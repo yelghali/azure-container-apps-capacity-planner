@@ -2,39 +2,58 @@
 
 import { useState } from "react";
 
+type PlanType = "Consumption" | "Dedicated";
+type PlanChoice = PlanType | "Mix";
+
 type AppInput = {
   name: string;
   cpu: number;
   gpu: number;
   ram: number;
   replicas: number;
+  plan?: PlanType;
 };
 
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
-    { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1 },
+    { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1, plan: "Consumption" },
   ]);
   const [subnetSize, setSubnetSize] = useState("");
-  const [result, setResult] = useState<{ plan: string; ips: number } | null>(
-    null
-  );
+  const [planChoice, setPlanChoice] = useState<PlanChoice>("Consumption");
+  const [result, setResult] = useState<
+    { plan: string; ips: number; details?: string } | null
+  >(null);
 
-  function calculate(apps: AppInput[], subnet: string) {
-    const totalReplicas = apps.reduce((sum, app) => sum + app.replicas, 0);
-    const totalCPU = apps.reduce((sum, app) => sum + app.cpu * app.replicas, 0);
+  function calculate(apps: AppInput[], subnet: string, planChoice: PlanChoice) {
+    let plan = planChoice;
+    let ips = 0;
+    let details = "";
 
-    let plan = "Consumption";
-    if (totalCPU > 8) plan = "Dedicated";
-    if (totalCPU > 32) plan = "Premium";
+    if (planChoice === "Mix") {
+      const consApps = apps.filter((a) => a.plan === "Consumption");
+      const dedApps = apps.filter((a) => a.plan === "Dedicated");
+      const consReplicas = consApps.reduce((sum, app) => sum + app.replicas, 0);
+      const dedReplicas = dedApps.reduce((sum, app) => sum + app.replicas, 0);
+      ips = consReplicas + dedReplicas + 1;
+      details = `Consumption apps: ${consApps.length}, Dedicated apps: ${dedApps.length}`;
+    } else {
+      const totalReplicas = apps.reduce((sum, app) => sum + app.replicas, 0);
+      ips = totalReplicas + 1;
+    }
 
-    const ips = totalReplicas + 1;
-    return { plan, ips };
+    return { plan: planChoice, ips, details };
   }
 
-  const handleAppChange = (idx: number, field: keyof AppInput, value: string) => {
+  const handleAppChange = (
+    idx: number,
+    field: keyof AppInput,
+    value: string
+  ) => {
     const updated = [...apps];
     if (field === "name") {
       updated[idx][field] = value as AppInput[typeof field];
+    } else if (field === "plan") {
+      updated[idx][field] = value as PlanType;
     } else {
       updated[idx][field] = Number(value) as AppInput[typeof field];
     }
@@ -42,7 +61,17 @@ export default function Home() {
   };
 
   const addApp = () => {
-    setApps([...apps, { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1 }]);
+    setApps([
+      ...apps,
+      {
+        name: "",
+        cpu: 0,
+        gpu: 0,
+        ram: 0,
+        replicas: 1,
+        plan: planChoice === "Mix" ? "Consumption" : undefined,
+      },
+    ]);
   };
 
   const removeApp = (idx: number) => {
@@ -51,30 +80,116 @@ export default function Home() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setResult(calculate(apps, subnetSize));
+    setResult(calculate(apps, subnetSize, planChoice));
+  };
+
+  // If planChoice changes, reset per-app plan if not "Mix"
+  const handlePlanChoiceChange = (value: PlanChoice) => {
+    setPlanChoice(value);
+    if (value !== "Mix") {
+      setApps((prev) =>
+        prev.map((app) => {
+          const { plan, ...rest } = app;
+          return rest;
+        })
+      );
+    } else {
+      setApps((prev) =>
+        prev.map((app) => ({
+          ...app,
+          plan: "Consumption",
+        }))
+      );
+    }
   };
 
   return (
     <main style={{ maxWidth: 700, margin: "2rem auto", fontFamily: "sans-serif" }}>
-      <h1 style={{ textAlign: "center", marginBottom: 0 }}>Azure Container App Capacity Planner</h1>
-      <p style={{ textAlign: "center", color: "#555", marginTop: 4, marginBottom: 32 }}>
+      <h1 style={{ textAlign: "center", marginBottom: 0 }}>
+        Azure Container App Capacity Planner
+      </h1>
+      <p
+        style={{
+          textAlign: "center",
+          color: "#222",
+          marginTop: 4,
+          marginBottom: 32,
+        }}
+      >
         Enter your subnet size and app requirements to estimate the best Azure plan and IP usage.
       </p>
-      <form onSubmit={handleSubmit} style={{ background: "#f9f9f9", padding: 24, borderRadius: 12, boxShadow: "0 2px 8px #0001" }}>
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          background: "#fff",
+          padding: 24,
+          borderRadius: 12,
+          boxShadow: "0 2px 8px #0001",
+        }}
+      >
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontWeight: 500, marginRight: 8 }}>
+            Which plan do you want to use?
+          </label>
+          <label style={{ marginRight: 12 }}>
+            <input
+              type="radio"
+              name="planChoice"
+              value="Consumption"
+              checked={planChoice === "Consumption"}
+              onChange={() => handlePlanChoiceChange("Consumption")}
+            />{" "}
+            Consumption
+          </label>
+          <label style={{ marginRight: 12 }}>
+            <input
+              type="radio"
+              name="planChoice"
+              value="Dedicated"
+              checked={planChoice === "Dedicated"}
+              onChange={() => handlePlanChoiceChange("Dedicated")}
+            />{" "}
+            Dedicated
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="planChoice"
+              value="Mix"
+              checked={planChoice === "Mix"}
+              onChange={() => handlePlanChoiceChange("Mix")}
+            />{" "}
+            Mix
+          </label>
+        </div>
         <div style={{ marginBottom: 24 }}>
-          <label htmlFor="subnet" style={{ fontWeight: 500, marginRight: 8 }}>Subnet Size</label>
+          <label htmlFor="subnet" style={{ fontWeight: 500, marginRight: 8 }}>
+            Subnet Size
+          </label>
           <input
             id="subnet"
             type="text"
             placeholder="e.g. /24"
             value={subnetSize}
-            onChange={e => setSubnetSize(e.target.value)}
+            onChange={(e) => setSubnetSize(e.target.value)}
             required
-            style={{ padding: 8, borderRadius: 4, border: "1px solid #ccc", width: 120 }}
+            style={{
+              padding: 8,
+              borderRadius: 4,
+              border: "1px solid #ccc",
+              width: 120,
+            }}
           />
         </div>
         <h2 style={{ marginBottom: 12 }}>Apps</h2>
-        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16 }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            marginBottom: 16,
+            background: "#fff",
+          }}
+        >
           <thead>
             <tr style={{ background: "#e6f0fa" }}>
               <th style={thStyle}>Name</th>
@@ -82,6 +197,7 @@ export default function Home() {
               <th style={thStyle}>GPU</th>
               <th style={thStyle}>RAM (GB)</th>
               <th style={thStyle}>Max Replicas</th>
+              {planChoice === "Mix" && <th style={thStyle}>Plan</th>}
               <th style={thStyle}></th>
             </tr>
           </thead>
@@ -89,68 +205,106 @@ export default function Home() {
             {apps.map((app, idx) => (
               <tr key={idx}>
                 <td style={tdStyle}>
-                  <label className="sr-only" htmlFor={`name-${idx}`}>Name</label>
+                  <label className="sr-only" htmlFor={`name-${idx}`}>
+                    Name
+                  </label>
                   <input
                     id={`name-${idx}`}
                     type="text"
                     value={app.name}
-                    onChange={e => handleAppChange(idx, "name", e.target.value)}
+                    onChange={(e) =>
+                      handleAppChange(idx, "name", e.target.value)
+                    }
                     required
                     style={inputStyle}
                   />
                 </td>
                 <td style={tdStyle}>
-                  <label className="sr-only" htmlFor={`cpu-${idx}`}>CPU</label>
+                  <label className="sr-only" htmlFor={`cpu-${idx}`}>
+                    CPU
+                  </label>
                   <input
                     id={`cpu-${idx}`}
                     type="number"
                     value={app.cpu}
                     min={0}
                     step={0.1}
-                    onChange={e => handleAppChange(idx, "cpu", e.target.value)}
+                    onChange={(e) =>
+                      handleAppChange(idx, "cpu", e.target.value)
+                    }
                     required
                     style={inputStyle}
                   />
                 </td>
                 <td style={tdStyle}>
-                  <label className="sr-only" htmlFor={`gpu-${idx}`}>GPU</label>
+                  <label className="sr-only" htmlFor={`gpu-${idx}`}>
+                    GPU
+                  </label>
                   <input
                     id={`gpu-${idx}`}
                     type="number"
                     value={app.gpu}
                     min={0}
                     step={1}
-                    onChange={e => handleAppChange(idx, "gpu", e.target.value)}
+                    onChange={(e) =>
+                      handleAppChange(idx, "gpu", e.target.value)
+                    }
                     required
                     style={inputStyle}
                   />
                 </td>
                 <td style={tdStyle}>
-                  <label className="sr-only" htmlFor={`ram-${idx}`}>RAM (GB)</label>
+                  <label className="sr-only" htmlFor={`ram-${idx}`}>
+                    RAM (GB)
+                  </label>
                   <input
                     id={`ram-${idx}`}
                     type="number"
                     value={app.ram}
                     min={0}
                     step={0.1}
-                    onChange={e => handleAppChange(idx, "ram", e.target.value)}
+                    onChange={(e) =>
+                      handleAppChange(idx, "ram", e.target.value)
+                    }
                     required
                     style={inputStyle}
                   />
                 </td>
                 <td style={tdStyle}>
-                  <label className="sr-only" htmlFor={`replicas-${idx}`}>Max Replicas</label>
+                  <label className="sr-only" htmlFor={`replicas-${idx}`}>
+                    Max Replicas
+                  </label>
                   <input
                     id={`replicas-${idx}`}
                     type="number"
                     value={app.replicas}
                     min={1}
                     step={1}
-                    onChange={e => handleAppChange(idx, "replicas", e.target.value)}
+                    onChange={(e) =>
+                      handleAppChange(idx, "replicas", e.target.value)
+                    }
                     required
                     style={inputStyle}
                   />
                 </td>
+                {planChoice === "Mix" && (
+                  <td style={tdStyle}>
+                    <select
+                      value={app.plan}
+                      onChange={(e) =>
+                        handleAppChange(idx, "plan", e.target.value)
+                      }
+                      style={{
+                        ...inputStyle,
+                        minWidth: 110,
+                        padding: "6px 8px",
+                      }}
+                    >
+                      <option value="Consumption">Consumption</option>
+                      <option value="Dedicated">Dedicated</option>
+                    </select>
+                  </td>
+                )}
                 <td style={tdStyle}>
                   {apps.length > 1 && (
                     <button
@@ -209,14 +363,27 @@ export default function Home() {
         </div>
       </form>
       {result && (
-        <div style={{ marginTop: 32, padding: 16, border: "1px solid #0078d4", background: "#f3f9fd", borderRadius: 8 }}>
+        <div
+          style={{
+            marginTop: 32,
+            padding: 16,
+            border: "1px solid #0078d4",
+            background: "#f3f9fd",
+            borderRadius: 8,
+          }}
+        >
           <h2>Results</h2>
           <p>
-            <strong>Recommended Plan:</strong> {result.plan}
+            <strong>Selected Plan:</strong> {result.plan}
           </p>
           <p>
             <strong>Estimated IPs Used:</strong> {result.ips}
           </p>
+          {result.details && (
+            <p>
+              <strong>Details:</strong> {result.details}
+            </p>
+          )}
         </div>
       )}
       <style jsx>{`
