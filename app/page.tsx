@@ -616,7 +616,26 @@ export default function Home() {
             borderRadius: 8,
           }}
         >
-          <h2>Results</h2>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h2>Results</h2>
+            <a
+              href="https://learn.microsoft.com/en-us/azure/container-apps/workload-profiles-overview#profile-types"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: "#0078d4",
+                color: "#fff",
+                padding: "6px 16px",
+                borderRadius: 6,
+                textDecoration: "none",
+                fontWeight: 600,
+                fontSize: 15,
+                marginLeft: 16,
+              }}
+            >
+              View Azure SKUs Documentation
+            </a>
+          </div>
           {result.warning && (
             <p style={{ color: "#c00", fontWeight: 500 }}>{result.warning}</p>
           )}
@@ -661,6 +680,10 @@ export default function Home() {
                 {result.assignment.map((node: any) => (
                   <li key={node.node}>
                     Node {node.node} ({result.nodeType.name}):{" "}
+                    <span style={{ color: "#0078d4" }}>
+                      [CPU: {result.nodeType.cpu}, RAM: {result.nodeType.ram}GB, GPU: {result.nodeType.gpu}]
+                    </span>
+                    {" — "}
                     {node.apps.map((a: any) => `${a.replicas} x ${a.name}`).join(", ")}
                   </li>
                 ))}
@@ -702,6 +725,10 @@ export default function Home() {
                 {result.assignment.map((node: any) => (
                   <li key={node.node}>
                     Node {node.node} ({result.nodeType.name}):{" "}
+                    <span style={{ color: "#0078d4" }}>
+                      [CPU: {result.nodeType.cpu}, RAM: {result.nodeType.ram}GB, GPU: {result.nodeType.gpu}]
+                    </span>
+                    {" — "}
                     {node.apps.map((a: any) => `${a.replicas * 2} x ${a.name}`).join(", ")}
                   </li>
                 ))}
