@@ -243,18 +243,25 @@ export default function Home() {
       let nodes = packed.nodes;
       let assignment = packed.assignment;
       let perAppNodes = packed.perAppNodes;
+      // Map app name to list of node numbers it is assigned to
+      const appNodeMap: Record<string, number[]> = {};
+      assignment.forEach((node) => {
+        node.apps.forEach((a) => {
+          if (!appNodeMap[a.name]) appNodeMap[a.name] = [];
+          appNodeMap[a.name].push(node.node);
+        });
+      });
       totalIPs += nodes;
       details = nodeType
         ? `Node type: ${nodeType.name}, Nodes needed: ${nodes}`
         : "No suitable node type found for app requirements.";
       apps.forEach(app => {
+        const appKey = app.name || "(unnamed)";
         appAssignments.push({
-          name: app.name || "(unnamed)",
+          name: appKey,
           plan: nodeType ? `Dedicated (${nodeType.name})` : "Dedicated (N/A)",
           replicas: app.replicas,
-          ipUsed: perAppNodes[app.name as string] || 0,
-          nodeType: nodeType ? nodeType.name : "-",
-          nodes: nodes,
+          nodesAssigned: appNodeMap[appKey]?.map(n => `Node ${n} (${nodeType?.name})`).join(", ") || "-",
         });
       });
       return {
@@ -647,7 +654,7 @@ export default function Home() {
                 <th style={thStyle}>App Name</th>
                 <th style={thStyle}>Assigned Plan</th>
                 <th style={thStyle}>Replicas</th>
-                <th style={thStyle}>IPs Used</th>
+                <th style={thStyle}>Node(s) Assigned</th>
               </tr>
             </thead>
             <tbody>
@@ -656,14 +663,15 @@ export default function Home() {
                   <td style={tdStyle}>{a.name}</td>
                   <td style={tdStyle}>{a.plan}</td>
                   <td style={tdStyle}>{a.replicas}</td>
-                  <td style={tdStyle}>{a.ipUsed}</td>
+                  <td style={tdStyle}>{a.nodesAssigned || "-"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <p style={{ color: "#666", fontSize: 13, marginTop: 12 }}>
             <em>
-              IP calculation: 14 reserved for infrastructure, +1 per node (Dedicated), +1 per 10 replicas (Consumption, rounded up).
+              IP calculation: 14 reserved for infrastructure, +1 per node (Dedicated), +1 per 10 replicas (Consumption, rounded up).<br />
+              <strong>Total IPs needed: {result.ips}</strong>
             </em>
           </p>
         </div>
