@@ -922,18 +922,6 @@ export default function Home() {
                     })}
                   </tbody>
                 </table>
-                {/* Add upgrade details summary here */}
-                {dedUpgrade.perApp.length > 0 && (
-                  <p style={{ marginTop: 8 }}>
-                    <strong>Details:</strong>{" "}
-                    {dedUpgrade.perApp
-                      .map(
-                        a =>
-                          `${a.appName}: ${a.nodesNeeded} x ${a.nodeTypeName} (up to ${a.perNodeCapacity} per node)`
-                      )
-                      .join("; ")}
-                  </p>
-                )}
                 <p style={{ marginTop: 12 }}>
                   <strong>Estimated IPs Used During Upgrades (Zero-downtime, based on Min Replicas Doubled):</strong> {upgradeIPs}
                 </p>
