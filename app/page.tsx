@@ -157,7 +157,8 @@ export default function Home() {
       warning = "Minimum subnet size for integration is /27!";
     }
 
-    let totalIPs = 14; // 14 reserved for infra
+    // Remove infra IPs from calculation, since availableIPs already subtracts 14
+    let totalIPs = 0;
     let appAssignments: any[] = [];
     let details = "";
 
@@ -199,7 +200,7 @@ export default function Home() {
           });
         });
       }
-      totalIPs += consIPs + dedIPs;
+      totalIPs = consIPs + dedIPs;
       details = `Consumption apps: ${consApps.length}, Dedicated apps: ${dedApps.length}`;
       return {
         plan: "Mix",
@@ -226,7 +227,7 @@ export default function Home() {
           nodes: "-",
         });
       });
-      totalIPs += consIPs;
+      totalIPs = consIPs;
       details = `Consumption apps: ${apps.length}`;
       return {
         plan: "Consumption",
@@ -251,7 +252,7 @@ export default function Home() {
           appNodeMap[a.name].push(node.node);
         });
       });
-      totalIPs += nodes;
+      totalIPs = nodes;
       details = nodeType
         ? `Node type: ${nodeType.name}, Nodes needed: ${nodes}`
         : "No suitable node type found for app requirements.";
