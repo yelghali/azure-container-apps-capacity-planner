@@ -370,7 +370,7 @@ export default function Home() {
   };
 
   return (
-    <main style={{ maxWidth: 700, margin: "2rem auto", fontFamily: "sans-serif" }}>
+    <main style={{ maxWidth: 1100, margin: "2rem auto", fontFamily: "sans-serif" }}>
       {/* How it works button and modal */}
       <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 8, gap: 8 }}>
         <a
