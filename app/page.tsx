@@ -47,96 +47,63 @@ function getAvailableIPs(subnet: string): number | null {
   return null;
 }
 
-// Bin-packing for Dedicated: fill nodes with as many app replicas as possible
-function packDedicatedNodes(apps: AppInput[]) {
-  // Find the smallest node type that fits the largest per-replica requirements
-  let maxCpu = 0, maxRam = 0, maxGpu = 0;
-  apps.forEach(app => {
-    maxCpu = Math.max(maxCpu, app.cpu);
-    maxRam = Math.max(maxRam, app.ram);
-    maxGpu = Math.max(maxGpu, app.gpu);
-  });
-  const nodeType = DEDICATED_NODE_TYPES.find(
-    node => node.cpu >= maxCpu && node.ram >= maxRam && node.gpu >= maxGpu
-  );
-  if (!nodeType) return { nodeType: null, nodes: 0, assignment: [] };
+// New: For each app, assign a fixed node SKU and pack its replicas
+function getPerAppDedicatedNodes(apps: AppInput[], useMinReplicas = false) {
+  type NodeType = typeof DEDICATED_NODE_TYPES[number];
+  type PerAppResult = {
+    appName: string;
+    nodeType: NodeType | null;
+    nodeTypeName: string;
+    replicas: number;
+    nodesNeeded: number;
+    perNodeCapacity: number;
+    plan: string;
+    minReplicas: number;
+  };
+  const perApp: PerAppResult[] = [];
+  let totalNodes = 0;
+  let warning: string | undefined;
 
-  // Deep copy of app replicas
-  let remaining = apps.map(app => ({ ...app }));
-  let nodes = 0;
-  let assignment: { node: number, apps: { name: string, replicas: number }[] }[] = [];
-  while (remaining.some(app => app.replicas > 0)) {
-    let nodeCpu = nodeType.cpu, nodeRam = nodeType.ram, nodeGpu = nodeType.gpu;
-    let nodeApps: { name: string, replicas: number }[] = [];
-    for (let i = 0; i < remaining.length; i++) {
-      let app = remaining[i];
-      let fit = Math.min(
-        app.replicas,
-        Math.floor(nodeCpu / app.cpu),
-        Math.floor(nodeRam / app.ram),
-        app.gpu > 0 ? Math.floor(nodeGpu / app.gpu) : Infinity
-      );
-      if (fit > 0) {
-        nodeApps.push({ name: app.name || `(App ${i + 1})`, replicas: fit });
-        nodeCpu -= fit * app.cpu;
-        nodeRam -= fit * app.ram;
-        nodeGpu -= fit * app.gpu;
-        app.replicas -= fit;
-      }
+  for (const app of apps) {
+    const replicas = useMinReplicas ? app.minReplicas : app.replicas;
+    // Find smallest node type that fits a single replica
+    const nodeType = DEDICATED_NODE_TYPES.find(
+      n => n.cpu >= app.cpu && n.ram >= app.ram && n.gpu >= app.gpu
+    );
+    if (!nodeType) {
+      perApp.push({
+        appName: app.name || "(unnamed)",
+        nodeType: null,
+        nodeTypeName: "N/A",
+        replicas,
+        nodesNeeded: 0,
+        perNodeCapacity: 0,
+        plan: "Dedicated (N/A)",
+        minReplicas: app.minReplicas,
+      });
+      warning = "No suitable node type found for one or more apps.";
+      continue;
     }
-    assignment.push({ node: nodes + 1, apps: nodeApps });
-    nodes++;
+    // How many replicas fit on one node of this type?
+    const perNodeCapacity = Math.min(
+      Math.floor(nodeType.cpu / app.cpu),
+      Math.floor(nodeType.ram / app.ram),
+      app.gpu > 0 ? Math.floor(nodeType.gpu / app.gpu) : Infinity
+    );
+    const nodesNeeded = perNodeCapacity > 0 ? Math.ceil(replicas / perNodeCapacity) : 0;
+    totalNodes += nodesNeeded;
+    perApp.push({
+      appName: app.name || "(unnamed)",
+      nodeType,
+      nodeTypeName: nodeType.name,
+      replicas,
+      nodesNeeded,
+      perNodeCapacity,
+      plan: `Dedicated (${nodeType.name})`,
+      minReplicas: app.minReplicas,
+    });
   }
-  return { nodeType, nodes, assignment };
-}
-
-function getDedicatedNodesPerApp(apps: AppInput[]): {
-  nodeType: typeof DEDICATED_NODE_TYPES[number] | null,
-  perAppNodes: Record<string, number>,
-  nodes: number,
-  assignment: { node: number, apps: { name: string, replicas: number }[] }[]
-} {
-  // Find the smallest node type that fits the largest per-replica requirements
-  let maxCpu = 0, maxRam = 0, maxGpu = 0;
-  apps.forEach(app => {
-    maxCpu = Math.max(maxCpu, app.cpu);
-    maxRam = Math.max(maxRam, app.ram);
-    maxGpu = Math.max(maxGpu, app.gpu);
-  });
-  const nodeType = DEDICATED_NODE_TYPES.find(
-    node => node.cpu >= maxCpu && node.ram >= maxRam && node.gpu >= maxGpu
-  );
-  if (!nodeType) return { nodeType: null, perAppNodes: {}, nodes: 0, assignment: [] };
-
-  let remaining = apps.map(app => ({ ...app }));
-  let nodes = 0;
-  let assignment: { node: number, apps: { name: string, replicas: number }[] }[] = [];
-  let perAppNodes: Record<string, number> = {};
-  while (remaining.some(app => app.replicas > 0)) {
-    let nodeCpu = nodeType.cpu, nodeRam = nodeType.ram, nodeGpu = nodeType.gpu;
-    let nodeApps: { name: string, replicas: number }[] = [];
-    for (let i = 0; i < remaining.length; i++) {
-      let app = remaining[i];
-      let fit = Math.min(
-        app.replicas,
-        Math.floor(nodeCpu / app.cpu),
-        Math.floor(nodeRam / app.ram),
-        app.gpu > 0 ? Math.floor(nodeGpu / app.gpu) : Infinity
-      );
-      if (fit > 0) {
-        const appKey = app.name || `(App ${i + 1})`;
-        nodeApps.push({ name: appKey, replicas: fit });
-        nodeCpu -= fit * app.cpu;
-        nodeRam -= fit * app.ram;
-        nodeGpu -= fit * app.gpu;
-        app.replicas -= fit;
-        perAppNodes[appKey] = (perAppNodes[appKey] || 0) + 1;
-      }
-    }
-    assignment.push({ node: nodes + 1, apps: nodeApps });
-    nodes++;
-  }
-  return { nodeType, perAppNodes, nodes, assignment };
+  return { perApp, totalNodes, warning };
 }
 
 // Add this function before Home()
@@ -199,7 +166,6 @@ export default function Home() {
       warning = "Minimum subnet size for integration is /27!";
     }
 
-    let totalIPs = 0;
     let appAssignments: any[] = [];
     let details = "";
 
@@ -223,38 +189,34 @@ export default function Home() {
           nodes: "-",
         });
       });
-      let dedIPs = 0;
-      let nodeType: typeof DEDICATED_NODE_TYPES[number] | null = null, nodes = 0, assignment: { node: number, apps: { name: string, replicas: number }[] }[] = [];
-      if (dedApps.length > 0) {
-        const packed = packDedicatedNodes(dedApps);
-        nodeType = packed.nodeType;
-        nodes = packed.nodes;
-        assignment = packed.assignment;
-        dedIPs = nodes;
-        dedApps.forEach(app => {
-          appAssignments.push({
-            name: app.name || "(unnamed)",
-            plan: nodeType ? `Dedicated (${nodeType.name})` : "Dedicated (N/A)",
-            replicas: app.replicas,
-            minReplicas: app.minReplicas,
-            ipUsed: "-",
-            nodeType: nodeType ? nodeType.name : "-",
-            nodes: nodes,
-          });
+
+      // Dedicated: per-app node assignment
+      const dedResult = getPerAppDedicatedNodes(dedApps, false);
+      dedResult.perApp.forEach(appRes => {
+        appAssignments.push({
+          name: appRes.appName,
+          plan: appRes.plan,
+          replicas: appRes.replicas,
+          minReplicas: appRes.minReplicas,
+          nodeType: appRes.nodeTypeName,
+          nodes: appRes.nodesNeeded,
+          perNodeCapacity: appRes.perNodeCapacity,
         });
-      }
-      totalIPs = consIPs + dedIPs;
+      });
+
+      const dedIPs = dedResult.totalNodes;
+      const totalIPs = consIPs + dedIPs;
       details = `Consumption apps: ${consApps.length}, Dedicated apps: ${dedApps.length}`;
       return {
         plan: "Mix",
         ips: totalIPs,
-        doubledIPs: consApps.reduce((sum, app) => sum + Math.ceil((app.minReplicas || 1) / 10), 0) + dedIPs, // for zero-downtime, use minReplicas for IPs
+        doubledIPs:
+          consApps.reduce((sum, app) => sum + Math.ceil((app.minReplicas || 1) / 10), 0) +
+          getPerAppDedicatedNodes(dedApps, true).totalNodes,
         details,
         appAssignments,
-        warning,
-        nodeType,
-        nodes,
-        assignment,
+        warning: warning || dedResult.warning,
+        perAppDedicated: dedResult.perApp,
         minReplicas: totalMinReplicas,
       };
     } else if (planChoice === "Consumption") {
@@ -284,42 +246,35 @@ export default function Home() {
         minReplicas: totalMinReplicas,
       };
     } else {
-      // Dedicated
-      const packed = getDedicatedNodesPerApp(apps);
-      let nodeType = packed.nodeType;
-      let nodes = packed.nodes;
-      let assignment = packed.assignment;
-      let perAppNodes = packed.perAppNodes;
-      const appNodeMap: Record<string, number[]> = {};
-      assignment.forEach((node) => {
-        node.apps.forEach((a) => {
-          if (!appNodeMap[a.name]) appNodeMap[a.name] = [];
-          appNodeMap[a.name].push(node.node);
-        });
-      });
-      apps.forEach(app => {
-        const appKey = app.name || "(unnamed)";
+      // Dedicated: per-app node assignment
+      const dedResult = getPerAppDedicatedNodes(apps, false);
+      dedResult.perApp.forEach(appRes => {
         appAssignments.push({
-          name: appKey,
-          plan: nodeType ? `Dedicated (${nodeType.name})` : "Dedicated (N/A)",
-          replicas: app.replicas,
-          minReplicas: app.minReplicas,
-          nodesAssigned: appNodeMap[appKey]?.map(n => `Node ${n} (${nodeType?.name})`).join(", ") || "-",
+          name: appRes.appName,
+          plan: appRes.plan,
+          replicas: appRes.replicas,
+          minReplicas: appRes.minReplicas,
+          nodeType: appRes.nodeTypeName,
+          nodes: appRes.nodesNeeded,
+          perNodeCapacity: appRes.perNodeCapacity,
         });
       });
       // For zero-downtime, use minReplicas for each app
       return {
         plan: "Dedicated",
-        ips: nodes,
-        doubledIPs: apps.reduce((sum, app) => sum + (app.minReplicas || 1), 0),
-        details: nodeType
-          ? `Node type: ${nodeType.name}, Nodes needed: ${nodes}`
-          : "No suitable node type found for app requirements.",
+        ips: dedResult.totalNodes,
+        doubledIPs: getPerAppDedicatedNodes(apps, true).totalNodes,
+        details: dedResult.warning
+          ? dedResult.warning
+          : dedResult.perApp
+              .map(
+                a =>
+                  `${a.appName}: ${a.nodesNeeded} x ${a.nodeTypeName} (up to ${a.perNodeCapacity} per node)`
+              )
+              .join("; "),
         appAssignments,
-        warning: nodeType ? undefined : "No suitable node type found for app requirements.",
-        nodeType,
-        nodes,
-        assignment,
+        warning: warning || dedResult.warning,
+        perAppDedicated: dedResult.perApp,
         minReplicas: totalMinReplicas,
       };
     }
