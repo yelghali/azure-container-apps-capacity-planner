@@ -14,15 +14,27 @@ type AppInput = {
   plan?: PlanType;
 };
 
+const DEDICATED_NODE_TYPES = [
+  { name: "D4", cpu: 4, ram: 16, gpu: 0 },
+  { name: "D8", cpu: 8, ram: 32, gpu: 0 },
+  { name: "D16", cpu: 16, ram: 64, gpu: 0 },
+  { name: "D32", cpu: 32, ram: 128, gpu: 0 },
+  { name: "E4", cpu: 4, ram: 32, gpu: 0 },
+  { name: "E8", cpu: 8, ram: 64, gpu: 0 },
+  { name: "E16", cpu: 16, ram: 128, gpu: 0 },
+  { name: "E32", cpu: 32, ram: 256, gpu: 0 },
+  { name: "NC24-A100", cpu: 24, ram: 220, gpu: 1 },
+  { name: "NC48-A100", cpu: 48, ram: 440, gpu: 2 },
+  { name: "NC96-A100", cpu: 96, ram: 880, gpu: 4 },
+];
+
 function getAvailableIPs(subnet: string): number | null {
-  // Accepts /24, 24, or 255.255.255.0
   let bits: number | null = null;
   if (subnet.startsWith("/")) {
     bits = parseInt(subnet.slice(1), 10);
   } else if (/^\d+$/.test(subnet)) {
     bits = parseInt(subnet, 10);
   } else if (/^\d+\.\d+\.\d+\.\d+$/.test(subnet)) {
-    // Convert netmask to bits
     const parts = subnet.split(".").map(Number);
     const bin = parts.map((n) => n.toString(2).padStart(8, "0")).join("");
     bits = bin.split("1").length - 1;
@@ -34,36 +46,179 @@ function getAvailableIPs(subnet: string): number | null {
   return null;
 }
 
+// Bin-packing for Dedicated: fill nodes with as many app replicas as possible
+function packDedicatedNodes(apps: AppInput[]) {
+  // Find the smallest node type that fits the largest per-replica requirements
+  let maxCpu = 0, maxRam = 0, maxGpu = 0;
+  apps.forEach(app => {
+    maxCpu = Math.max(maxCpu, app.cpu);
+    maxRam = Math.max(maxRam, app.ram);
+    maxGpu = Math.max(maxGpu, app.gpu);
+  });
+  const nodeType = DEDICATED_NODE_TYPES.find(
+    node => node.cpu >= maxCpu && node.ram >= maxRam && node.gpu >= maxGpu
+  );
+  if (!nodeType) return { nodeType: null, nodes: 0, assignment: [] };
+
+  // Deep copy of app replicas
+  let remaining = apps.map(app => ({ ...app }));
+  let nodes = 0;
+  let assignment: { node: number, apps: { name: string, replicas: number }[] }[] = [];
+  while (remaining.some(app => app.replicas > 0)) {
+    let nodeCpu = nodeType.cpu, nodeRam = nodeType.ram, nodeGpu = nodeType.gpu;
+    let nodeApps: { name: string, replicas: number }[] = [];
+    for (let i = 0; i < remaining.length; i++) {
+      let app = remaining[i];
+      let fit = Math.min(
+        app.replicas,
+        Math.floor(nodeCpu / app.cpu),
+        Math.floor(nodeRam / app.ram),
+        app.gpu > 0 ? Math.floor(nodeGpu / app.gpu) : Infinity
+      );
+      if (fit > 0) {
+        nodeApps.push({ name: app.name || `(App ${i + 1})`, replicas: fit });
+        nodeCpu -= fit * app.cpu;
+        nodeRam -= fit * app.ram;
+        nodeGpu -= fit * app.gpu;
+        app.replicas -= fit;
+      }
+    }
+    assignment.push({ node: nodes + 1, apps: nodeApps });
+    nodes++;
+  }
+  return { nodeType, nodes, assignment };
+}
+
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
     { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1, plan: "Consumption" },
   ]);
   const [subnetSize, setSubnetSize] = useState("");
   const [planChoice, setPlanChoice] = useState<PlanChoice>("Consumption");
-  const [result, setResult] = useState<
-    { plan: string; ips: number; details?: string } | null
-  >(null);
+  const [result, setResult] = useState<any>(null);
 
   const availableIPs = getAvailableIPs(subnetSize);
 
   function calculate(apps: AppInput[], subnet: string, planChoice: PlanChoice) {
-    let plan = planChoice;
-    let ips = 0;
+    let warning = "";
+    let bits: number | null = null;
+    if (subnet.startsWith("/")) bits = parseInt(subnet.slice(1), 10);
+    else if (/^\d+$/.test(subnet)) bits = parseInt(subnet, 10);
+    if (bits !== null && bits < 27) {
+      warning = "Minimum subnet size for integration is /27!";
+    }
+
+    let totalIPs = 14; // 14 reserved for infra
+    let appAssignments: any[] = [];
     let details = "";
 
     if (planChoice === "Mix") {
-      const consApps = apps.filter((a) => a.plan === "Consumption");
-      const dedApps = apps.filter((a) => a.plan === "Dedicated");
-      const consReplicas = consApps.reduce((sum, app) => sum + app.replicas, 0);
-      const dedReplicas = dedApps.reduce((sum, app) => sum + app.replicas, 0);
-      ips = consReplicas + dedReplicas + 1;
+      // Split apps by plan
+      const consApps = apps.filter(a => a.plan === "Consumption");
+      const dedApps = apps.filter(a => a.plan === "Dedicated");
+      // Consumption
+      let consIPs = 0;
+      consApps.forEach(app => {
+        let ipUsed = Math.ceil(app.replicas / 10);
+        consIPs += ipUsed;
+        appAssignments.push({
+          name: app.name || "(unnamed)",
+          plan: "Consumption",
+          replicas: app.replicas,
+          ipUsed,
+          nodeType: "-",
+          nodes: "-",
+        });
+      });
+      // Dedicated
+      let dedIPs = 0;
+      let nodeType = null, nodes = 0, assignment = [];
+      if (dedApps.length > 0) {
+        const packed = packDedicatedNodes(dedApps);
+        nodeType = packed.nodeType;
+        nodes = packed.nodes;
+        assignment = packed.assignment;
+        dedIPs = nodes;
+        dedApps.forEach(app => {
+          appAssignments.push({
+            name: app.name || "(unnamed)",
+            plan: nodeType ? `Dedicated (${nodeType.name})` : "Dedicated (N/A)",
+            replicas: app.replicas,
+            ipUsed: "-", // shown in node summary
+            nodeType: nodeType ? nodeType.name : "-",
+            nodes: nodes,
+          });
+        });
+      }
+      totalIPs += consIPs + dedIPs;
       details = `Consumption apps: ${consApps.length}, Dedicated apps: ${dedApps.length}`;
+      return {
+        plan: "Mix",
+        ips: totalIPs,
+        doubledIPs: totalIPs * 2,
+        details,
+        appAssignments,
+        warning,
+        nodeType,
+        nodes,
+        assignment,
+      };
+    } else if (planChoice === "Consumption") {
+      let consIPs = 0;
+      apps.forEach(app => {
+        let ipUsed = Math.ceil(app.replicas / 10);
+        consIPs += ipUsed;
+        appAssignments.push({
+          name: app.name || "(unnamed)",
+          plan: "Consumption",
+          replicas: app.replicas,
+          ipUsed,
+          nodeType: "-",
+          nodes: "-",
+        });
+      });
+      totalIPs += consIPs;
+      details = `Consumption apps: ${apps.length}`;
+      return {
+        plan: "Consumption",
+        ips: totalIPs,
+        doubledIPs: totalIPs * 2,
+        details,
+        appAssignments,
+        warning,
+      };
     } else {
-      const totalReplicas = apps.reduce((sum, app) => sum + app.replicas, 0);
-      ips = totalReplicas + 1;
+      // Dedicated
+      const packed = packDedicatedNodes(apps);
+      let nodeType = packed.nodeType;
+      let nodes = packed.nodes;
+      let assignment = packed.assignment;
+      totalIPs += nodes;
+      details = nodeType
+        ? `Node type: ${nodeType.name}, Nodes needed: ${nodes}`
+        : "No suitable node type found for app requirements.";
+      apps.forEach(app => {
+        appAssignments.push({
+          name: app.name || "(unnamed)",
+          plan: nodeType ? `Dedicated (${nodeType.name})` : "Dedicated (N/A)",
+          replicas: app.replicas,
+          ipUsed: "-", // shown in node summary
+          nodeType: nodeType ? nodeType.name : "-",
+          nodes: nodes,
+        });
+      });
+      return {
+        plan: "Dedicated",
+        ips: totalIPs,
+        doubledIPs: totalIPs * 2,
+        details,
+        appAssignments,
+        warning: nodeType ? undefined : "No suitable node type found for app requirements.",
+        nodeType,
+        nodes,
+        assignment,
+      };
     }
-
-    return { plan: planChoice, ips, details };
   }
 
   const handleAppChange = (
@@ -105,7 +260,6 @@ export default function Home() {
     setResult(calculate(apps, subnetSize, planChoice));
   };
 
-  // If planChoice changes, reset per-app plan if not "Mix"
   const handlePlanChoiceChange = (value: PlanChoice) => {
     setPlanChoice(value);
     if (value !== "Mix") {
@@ -405,17 +559,63 @@ export default function Home() {
           }}
         >
           <h2>Results</h2>
+          {result.warning && (
+            <p style={{ color: "#c00", fontWeight: 500 }}>{result.warning}</p>
+          )}
           <p>
             <strong>Selected Plan:</strong> {result.plan}
           </p>
           <p>
             <strong>Estimated IPs Used:</strong> {result.ips}
           </p>
+          <p style={{ color: "#666", fontSize: 13 }}>
+            <em>
+              During zero-downtime deployments (single revision mode), required IPs are temporarily doubled: <strong>{result.doubledIPs}</strong>
+            </em>
+          </p>
           {result.details && (
             <p>
               <strong>Details:</strong> {result.details}
             </p>
           )}
+          {result.assignment && result.nodeType && (
+            <div style={{ marginTop: 12 }}>
+              <strong>Node Packing (Dedicated):</strong>
+              <ul>
+                {result.assignment.map((node: any) => (
+                  <li key={node.node}>
+                    Node {node.node} ({result.nodeType.name}):{" "}
+                    {node.apps.map((a: any) => `${a.replicas} x ${a.name}`).join(", ")}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#e6f0fa" }}>
+                <th style={thStyle}>App Name</th>
+                <th style={thStyle}>Assigned Plan</th>
+                <th style={thStyle}>Replicas</th>
+                <th style={thStyle}>IPs Used</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.appAssignments.map((a: any, i: number) => (
+                <tr key={i}>
+                  <td style={tdStyle}>{a.name}</td>
+                  <td style={tdStyle}>{a.plan}</td>
+                  <td style={tdStyle}>{a.replicas}</td>
+                  <td style={tdStyle}>{a.ipUsed}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ color: "#666", fontSize: 13, marginTop: 12 }}>
+            <em>
+              IP calculation: 14 reserved for infrastructure, +1 per node (Dedicated), +1 per 10 replicas (Consumption, rounded up).
+            </em>
+          </p>
         </div>
       )}
       <style jsx>{`
