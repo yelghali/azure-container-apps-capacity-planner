@@ -893,7 +893,7 @@ export default function Home() {
                   color: "#0078d4",
                   border: "none",
                   borderRadius: 6,
-                  padding: "6px 16px",
+                  padding: "6px 10px",
                   fontWeight: 600,
                   fontSize: 15,
                   cursor: "pointer",
