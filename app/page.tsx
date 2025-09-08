@@ -998,6 +998,9 @@ export default function Home() {
               })}
             </tbody>
           </table>
+
+          <br />
+          <br />
           {/* Zero-downtime (Upgrade Phase) Results */}
           <h3 style={{ marginTop: 32 }}>Planning for Zero-downtime (Upgrade Phase) during low usage periods</h3>
           {(() => {
