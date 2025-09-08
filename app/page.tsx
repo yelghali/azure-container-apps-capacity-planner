@@ -786,27 +786,6 @@ export default function Home() {
           )}
           {/* Final Results Table */}
           <h3 style={{ marginTop: 24 }}>Planning for Peak usage</h3>
-          {/* Dedicated node packing section */}
-          {result.assignment && result.nodeType && (
-            <>
-              <div style={{ marginTop: 12 }}>
-                <strong>Node Packing (Dedicated):</strong>
-                <ul>
-                  {result.assignment.map((node: any) => (
-                    <li key={node.node}>
-                      Node {node.node} ({result.nodeType.name}):{" "}
-                      <span style={{ color: "#0078d4" }}>
-                        [CPU: {result.nodeType.cpu}, RAM: {result.nodeType.ram}GB, GPU: {result.nodeType.gpu}]
-                      </span>
-                      {" — "}
-                      {node.apps.map((a: any) => `${a.replicas} x ${a.name}`).join(", ")}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </>
-          )}
-          {/* Always show results table */}
           <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#e6f0fa" }}>
@@ -814,23 +793,35 @@ export default function Home() {
                 <th style={thStyle}>Assigned Plan</th>
                 <th style={thStyle}>Replicas</th>
                 <th style={thStyle}>Node(s) Assigned</th>
+                <th style={thStyle}>IPs Used</th>
               </tr>
             </thead>
             <tbody>
-              {result.appAssignments.map((a: any, i: number) => (
-                <tr key={i}>
-                  <td style={tdStyle}>{a.name}</td>
-                  <td style={tdStyle}>{a.plan}</td>
-                  <td style={tdStyle}>{a.replicas}</td>
-                  <td style={tdStyle}>
-                    {a.nodesAssigned
-                      ? a.nodesAssigned
-                      : a.nodeType === "-" || a.nodes === "-"
-                      ? "-"
-                      : ""}
-                  </td>
-                </tr>
-              ))}
+              {result.appAssignments.map((a: any, i: number) => {
+                // Calculate node assignments and IPs used for each app
+                let nodesAssigned = "-";
+                let ipsUsed = "-";
+                if (a.nodeType !== "-" && a.nodes !== "-") {
+                  if (a.nodes > 0 && a.perNodeCapacity > 0) {
+                    nodesAssigned = Array(a.replicas)
+                      .fill(null)
+                      .map((_, idx) => `Node ${Math.floor(idx / (a.perNodeCapacity || 1)) + 1} (${a.nodeType})`)
+                      .join(", ");
+                    ipsUsed = a.nodes;
+                  }
+                } else if (a.plan === "Consumption") {
+                  ipsUsed = Math.ceil(a.replicas / 10).toString();
+                }
+                return (
+                  <tr key={i}>
+                    <td style={tdStyle}>{a.name}</td>
+                    <td style={tdStyle}>{a.plan}</td>
+                    <td style={tdStyle}>{a.replicas}</td>
+                    <td style={tdStyle}>{nodesAssigned}</td>
+                    <td style={tdStyle}>{ipsUsed}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {/* Zero-downtime (Upgrade Phase) Results */}
