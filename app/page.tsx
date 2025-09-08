@@ -10,7 +10,8 @@ type AppInput = {
   cpu: number;
   gpu: number;
   ram: number;
-  replicas: number;
+  replicas: number; // maxReplicas
+  minReplicas: number; // <-- new field
   plan?: PlanType;
 };
 
@@ -179,7 +180,7 @@ function getAppNodeAssignments(
 
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
-    { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1, plan: "Consumption" },
+    { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1, minReplicas: 1, plan: "Consumption" },
   ]);
   const [subnetSize, setSubnetSize] = useState("");
   const [planChoice, setPlanChoice] = useState<PlanChoice>("Consumption");
@@ -345,6 +346,7 @@ export default function Home() {
         gpu: 0,
         ram: 0,
         replicas: 1,
+        minReplicas: 1,
         plan: planChoice === "Mix" ? "Consumption" : undefined,
       },
     ]);
@@ -566,6 +568,7 @@ export default function Home() {
               <th style={thStyle}>GPU</th>
               <th style={thStyle}>RAM (GB)</th>
               <th style={thStyle}>Max Replicas</th>
+              <th style={thStyle}>Min Replicas</th>
               {planChoice === "Mix" && <th style={thStyle}>Plan</th>}
               <th style={thStyle}></th>
             </tr>
@@ -651,6 +654,23 @@ export default function Home() {
                     step={1}
                     onChange={(e) =>
                       handleAppChange(idx, "replicas", e.target.value)
+                    }
+                    required
+                    style={inputStyle}
+                  />
+                </td>
+                <td style={tdStyle}>
+                  <label className="sr-only" htmlFor={`minreplicas-${idx}`}>
+                    Min Replicas
+                  </label>
+                  <input
+                    id={`minreplicas-${idx}`}
+                    type="number"
+                    value={app.minReplicas}
+                    min={0}
+                    step={1}
+                    onChange={(e) =>
+                      handleAppChange(idx, "minReplicas", e.target.value)
                     }
                     required
                     style={inputStyle}
@@ -824,7 +844,12 @@ export default function Home() {
             </p>
           )}
           {/* Final Results Table */}
-          <h3 style={{ marginTop: 24 }}>Final Results</h3>
+          <h3 style={{ marginTop: 24 }}>Final Results (Peak Planning)</h3>
+          <p style={{ color: "#666", fontSize: 13 }}>
+            <em>
+              This table plans for the peak usage of your apps, using the <strong>Max Replicas</strong> value for each app.
+            </em>
+          </p>
           {result.assignment && result.nodeType && (
             <>
               <div style={{ marginTop: 12 }}>
@@ -872,43 +897,48 @@ export default function Home() {
           )}
           {/* ...existing code for IP calculation and summary... */}
           {/* Zero-downtime (doubled) Results Table */}
-          <h3 style={{ marginTop: 32 }}>Zero-downtime (Temporary Doubled) Results</h3>
-          {result.assignment && result.nodeType && (
+          <h3 style={{ marginTop: 32 }}>Upgrade/Revision Planning (Low Traffic)</h3>
+          <p style={{ color: "#666", fontSize: 13 }}>
+            <em>
+              This table plans for upgrades (revision/node updates) during low traffic, using the <strong>Min Replicas</strong> value for each app.
+            </em>
+          </p>
+          {result.doubledAssignments && result.doubledAssignments.ded && result.doubledAssignments.ded.assignment && result.doubledAssignments.ded.nodeType && (
             <>
               <div style={{ marginTop: 12 }}>
-                <strong>Node Packing (Dedicated, Doubled):</strong>
+                <strong>Node Packing (Dedicated, Upgrades):</strong>
                 <ul>
-                  {result.assignment.map((node: any) => (
+                  {result.doubledAssignments.ded.assignment.map((node: any) => (
                     <li key={node.node}>
-                      Node {node.node} ({result.nodeType.name}):{" "}
+                      Node {node.node} ({result.doubledAssignments.ded.nodeType.name}):{" "}
                       <span style={{ color: "#0078d4" }}>
-                        [CPU: {result.nodeType.cpu}, RAM: {result.nodeType.ram}GB, GPU: {result.nodeType.gpu}]
+                        [CPU: {result.doubledAssignments.ded.nodeType.cpu}, RAM: {result.doubledAssignments.ded.nodeType.ram}GB, GPU: {result.doubledAssignments.ded.nodeType.gpu}]
                       </span>
                       {" — "}
-                      {node.apps.map((a: any) => `${a.replicas * 2} x ${a.name}`).join(", ")}
+                      {node.apps.map((a: any) => `${a.replicas} x ${a.name}`).join(", ")}
                     </li>
                   ))}
                 </ul>
               </div>
-              {/* Compute node assignments for each app, doubled */}
+              {/* Compute node assignments for each app, using minReplicas */}
               {(() => {
-                const nodeAssignmentsDoubled = getAppNodeAssignments(result.assignment, result.nodeType.name, 2);
+                const nodeAssignmentsDoubled = getAppNodeAssignments(result.doubledAssignments.ded.assignment, result.doubledAssignments.ded.nodeType.name, 1);
                 return (
                   <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ background: "#e6f0fa" }}>
                         <th style={thStyle}>App Name</th>
                         <th style={thStyle}>Assigned Plan</th>
-                        <th style={thStyle}>Replicas (Doubled)</th>
-                        <th style={thStyle}>Node(s) Assigned (Doubled)</th>
+                        <th style={thStyle}>Min Replicas</th>
+                        <th style={thStyle}>Node(s) Assigned (Upgrade)</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {result.appAssignments.map((a: any, i: number) => (
+                      {apps.map((a, i) => (
                         <tr key={i}>
                           <td style={tdStyle}>{a.name}</td>
-                          <td style={tdStyle}>{a.plan}</td>
-                          <td style={tdStyle}>{a.replicas * 2}</td>
+                          <td style={tdStyle}>{a.plan || planChoice}</td>
+                          <td style={tdStyle}>{a.minReplicas}</td>
                           <td style={tdStyle}>{nodeAssignmentsDoubled[a.name] || "-"}</td>
                         </tr>
                       ))}
