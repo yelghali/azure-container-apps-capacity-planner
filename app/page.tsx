@@ -14,6 +14,26 @@ type AppInput = {
   plan?: PlanType;
 };
 
+function getAvailableIPs(subnet: string): number | null {
+  // Accepts /24, 24, or 255.255.255.0
+  let bits: number | null = null;
+  if (subnet.startsWith("/")) {
+    bits = parseInt(subnet.slice(1), 10);
+  } else if (/^\d+$/.test(subnet)) {
+    bits = parseInt(subnet, 10);
+  } else if (/^\d+\.\d+\.\d+\.\d+$/.test(subnet)) {
+    // Convert netmask to bits
+    const parts = subnet.split(".").map(Number);
+    const bin = parts.map((n) => n.toString(2).padStart(8, "0")).join("");
+    bits = bin.split("1").length - 1;
+  }
+  if (bits && bits >= 0 && bits <= 32) {
+    const total = Math.pow(2, 32 - bits);
+    return total - 14;
+  }
+  return null;
+}
+
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
     { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1, plan: "Consumption" },
@@ -23,6 +43,8 @@ export default function Home() {
   const [result, setResult] = useState<
     { plan: string; ips: number; details?: string } | null
   >(null);
+
+  const availableIPs = getAvailableIPs(subnetSize);
 
   function calculate(apps: AppInput[], subnet: string, planChoice: PlanChoice) {
     let plan = planChoice;
@@ -127,7 +149,7 @@ export default function Home() {
           boxShadow: "0 2px 8px #0001",
         }}
       >
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 16 }}>
           <label style={{ fontWeight: 500, marginRight: 8 }}>
             Which plan do you want to use?
           </label>
@@ -162,7 +184,7 @@ export default function Home() {
             Mix
           </label>
         </div>
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 24, display: "flex", alignItems: "center", gap: 16 }}>
           <label htmlFor="subnet" style={{ fontWeight: 500, marginRight: 8 }}>
             Subnet Size
           </label>
@@ -180,6 +202,13 @@ export default function Home() {
               width: 120,
             }}
           />
+          <span style={{ color: "#0078d4", fontWeight: 500 }}>
+            {subnetSize
+              ? `Available IPs: ${
+                  availableIPs !== null ? availableIPs : "-"
+                }`
+              : ""}
+          </span>
         </div>
         <h2 style={{ marginBottom: 12 }}>Apps</h2>
         <table
