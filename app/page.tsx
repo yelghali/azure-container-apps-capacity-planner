@@ -774,11 +774,7 @@ export default function Home() {
           <p>
             <strong>Estimated IPs Used:</strong> {result.ips}
           </p>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            <em>
-              <strong>Estimated IPs Used During Upgrades (Zero-downtime, based on MaxReplicas based on peak usage) IPs are temporarily doubled during revision upgrade:</strong> {result.doubledIPs}
-            </em>
-          </p>
+     
           {result.details && (
             <p>
               <strong>Details:</strong> {result.details}
@@ -839,31 +835,34 @@ export default function Home() {
               dedApps = apps;
             }
 
-            // Consumption: IPs = ceil(minReplicas/10) per app
+            // Consumption: IPs = ceil((minReplicas*2)/10) per app
             const consRows = consApps.map((app, i) => ({
               name: app.name || `(App ${i + 1})`,
               plan: "Consumption",
-              minReplicas: app.minReplicas,
-              ipUsed: Math.ceil(app.minReplicas / 10),
+              minReplicas: app.minReplicas * 2,
+              ipUsed: Math.ceil((app.minReplicas * 2) / 10),
             }));
             const consIPs = consRows.reduce((sum, row) => sum + row.ipUsed, 0);
 
-            // Dedicated: bin-pack using minReplicas
-            const dedUpgrade = getPerAppDedicatedNodes(dedApps, true);
+            // Dedicated: bin-pack using doubled minReplicas
+            // Create a copy of apps with doubled minReplicas for upgrade
+            const dedUpgrade = getPerAppDedicatedNodes(
+              dedApps.map(app => ({ ...app, minReplicas: app.minReplicas * 2 })),
+              true
+            );
 
             // Total IPs for upgrade phase
             const upgradeIPs = consIPs + (dedUpgrade.totalNodes || 0);
 
             return (
               <>
-                {/* REMOVE the first (detailed) table for dedicated apps here */}
                 <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: "#e6f0fa" }}>
                       <th style={thStyle}>App Name</th>
                       <th style={thStyle}>Assigned Plan</th>
-                      <th style={thStyle}>Replicas (Min)</th>
-                      <th style={thStyle}>Node(s) Assigned (Min)</th>
+                      <th style={thStyle}>Replicas (Min, Doubled)</th>
+                      <th style={thStyle}>Node(s) Assigned (Doubled)</th>
                       <th style={thStyle}>IPs Used</th>
                     </tr>
                   </thead>
@@ -880,23 +879,24 @@ export default function Home() {
                     ))}
                     {/* Dedicated rows */}
                     {dedApps.map((app, i) => {
+                      const perApp = dedUpgrade.perApp[i];
                       return (
                         <tr key={`ded-${i}`}>
                           <td style={tdStyle}>{app.name}</td>
                           <td style={tdStyle}>
-                            {dedUpgrade.perApp[i]?.plan || "Dedicated (N/A)"}
+                            {perApp?.plan || "Dedicated (N/A)"}
                           </td>
-                          <td style={tdStyle}>{app.minReplicas}</td>
+                          <td style={tdStyle}>{perApp?.replicas}</td>
                           <td style={tdStyle}>
-                            {dedUpgrade.perApp[i]?.nodesNeeded > 0
-                              ? Array(app.minReplicas)
+                            {perApp?.nodesNeeded > 0
+                              ? Array(perApp.replicas)
                                   .fill(null)
-                                  .map((_, idx) => `Node ${Math.floor(idx / (dedUpgrade.perApp[i]?.perNodeCapacity || 1)) + 1} (${dedUpgrade.perApp[i]?.nodeTypeName})`)
+                                  .map((_, idx) => `Node ${Math.floor(idx / (perApp.perNodeCapacity || 1)) + 1} (${perApp.nodeTypeName})`)
                                   .join(", ")
                               : "-"}
                           </td>
                           <td style={tdStyle}>
-                            {dedUpgrade.perApp[i]?.nodesNeeded > 0 ? dedUpgrade.perApp[i].nodesNeeded : "-"}
+                            {perApp?.nodesNeeded > 0 ? perApp.nodesNeeded : "-"}
                           </td>
                         </tr>
                       );
@@ -904,7 +904,7 @@ export default function Home() {
                   </tbody>
                 </table>
                 <p style={{ marginTop: 12 }}>
-                  <strong>Estimated IPs Used During Upgrades (Zero-downtime, based on Min Replicas):</strong> {upgradeIPs}
+                  <strong>Estimated IPs Used During Upgrades (Zero-downtime, based on Min Replicas Doubled):</strong> {upgradeIPs}
                 </p>
               </>
             );
