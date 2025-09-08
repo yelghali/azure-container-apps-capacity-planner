@@ -916,9 +916,9 @@ export default function Home() {
                     <ul>
                       {dedPacked.assignment.map((node: any) => (
                         <li key={node.node}>
-                          Node {node.node} ({dedPacked.nodeType.name}):{" "}
+                          Node {node.node} ({dedPacked.nodeType ? dedPacked.nodeType.name : "N/A"}):{" "}
                           <span style={{ color: "#0078d4" }}>
-                            [CPU: {dedPacked.nodeType.cpu}, RAM: {dedPacked.nodeType.ram}GB, GPU: {dedPacked.nodeType.gpu}]
+                            [CPU: {dedPacked.nodeType ? dedPacked.nodeType.cpu : "-"}, RAM: {dedPacked.nodeType ? dedPacked.nodeType.ram : "-"}GB, GPU: {dedPacked.nodeType ? dedPacked.nodeType.gpu : "-"}]
                           </span>
                           {" — "}
                           {node.apps.map((a: any) => `${a.replicas} x ${a.name}`).join(", ")}
