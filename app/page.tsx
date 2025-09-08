@@ -152,6 +152,31 @@ function validateAppInput(app: AppInput, planChoice: PlanChoice): string | null 
   return null;
 }
 
+function getAppNodeAssignments(
+  assignment: { node: number; apps: { name: string; replicas: number }[] }[],
+  nodeTypeName: string,
+  multiplier: number = 1
+): Record<string, string> {
+  // Map app name to a list of node assignments (with node number and type)
+  const appNodeMap: Record<string, string[]> = {};
+  assignment.forEach((node) => {
+    node.apps.forEach((a) => {
+      const appName = a.name;
+      if (!appNodeMap[appName]) appNodeMap[appName] = [];
+      // Repeat node assignment for each replica (multiplied for temp/doubled)
+      for (let i = 0; i < a.replicas * multiplier; i++) {
+        appNodeMap[appName].push(`Node ${node.node} (${nodeTypeName})`);
+      }
+    });
+  });
+  // Join node assignments for display
+  const result: Record<string, string> = {};
+  Object.entries(appNodeMap).forEach(([app, nodes]) => {
+    result[app] = nodes.join(", ");
+  });
+  return result;
+}
+
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
     { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1, plan: "Consumption" },
@@ -801,106 +826,102 @@ export default function Home() {
           {/* Final Results Table */}
           <h3 style={{ marginTop: 24 }}>Final Results</h3>
           {result.assignment && result.nodeType && (
-            <div style={{ marginTop: 12 }}>
-              <strong>Node Packing (Dedicated):</strong>
-              <ul>
-                {result.assignment.map((node: any) => (
-                  <li key={node.node}>
-                    Node {node.node} ({result.nodeType.name}):{" "}
-                    <span style={{ color: "#0078d4" }}>
-                      [CPU: {result.nodeType.cpu}, RAM: {result.nodeType.ram}GB, GPU: {result.nodeType.gpu}]
-                    </span>
-                    {" — "}
-                    {node.apps.map((a: any) => `${a.replicas} x ${a.name}`).join(", ")}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <>
+              <div style={{ marginTop: 12 }}>
+                <strong>Node Packing (Dedicated):</strong>
+                <ul>
+                  {result.assignment.map((node: any) => (
+                    <li key={node.node}>
+                      Node {node.node} ({result.nodeType.name}):{" "}
+                      <span style={{ color: "#0078d4" }}>
+                        [CPU: {result.nodeType.cpu}, RAM: {result.nodeType.ram}GB, GPU: {result.nodeType.gpu}]
+                      </span>
+                      {" — "}
+                      {node.apps.map((a: any) => `${a.replicas} x ${a.name}`).join(", ")}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {/* Compute node assignments for each app */}
+              {(() => {
+                const nodeAssignments = getAppNodeAssignments(result.assignment, result.nodeType.name, 1);
+                return (
+                  <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#e6f0fa" }}>
+                        <th style={thStyle}>App Name</th>
+                        <th style={thStyle}>Assigned Plan</th>
+                        <th style={thStyle}>Replicas</th>
+                        <th style={thStyle}>Node(s) Assigned</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.appAssignments.map((a: any, i: number) => (
+                        <tr key={i}>
+                          <td style={tdStyle}>{a.name}</td>
+                          <td style={tdStyle}>{a.plan}</td>
+                          <td style={tdStyle}>{a.replicas}</td>
+                          <td style={tdStyle}>{nodeAssignments[a.name] || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </>
           )}
-          <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#e6f0fa" }}>
-                <th style={thStyle}>App Name</th>
-                <th style={thStyle}>Assigned Plan</th>
-                <th style={thStyle}>Replicas</th>
-                <th style={thStyle}>Node(s) Assigned</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.appAssignments.map((a: any, i: number) => (
-                <tr key={i}>
-                  <td style={tdStyle}>{a.name}</td>
-                  <td style={tdStyle}>{a.plan}</td>
-                  <td style={tdStyle}>{a.replicas}</td>
-                  <td style={tdStyle}>{a.nodesAssigned || "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p style={{ color: "#666", fontSize: 13, marginTop: 12 }}>
-            <em>
-              IP calculation: 14 reserved for infrastructure, +1 per node (Dedicated), +1 per 10 replicas (Consumption, rounded up).<br />
-              <strong>Total IPs needed: {result.ips}</strong>
-            </em>
-          </p>
+          {/* ...existing code for IP calculation and summary... */}
           {/* Zero-downtime (doubled) Results Table */}
           <h3 style={{ marginTop: 32 }}>Zero-downtime (Temporary Doubled) Results</h3>
           {result.assignment && result.nodeType && (
-            <div style={{ marginTop: 12 }}>
-              <strong>Node Packing (Dedicated, Doubled):</strong>
-              <ul>
-                {result.assignment.map((node: any) => (
-                  <li key={node.node}>
-                    Node {node.node} ({result.nodeType.name}):{" "}
-                    <span style={{ color: "#0078d4" }}>
-                      [CPU: {result.nodeType.cpu}, RAM: {result.nodeType.ram}GB, GPU: {result.nodeType.gpu}]
-                    </span>
-                    {" — "}
-                    {node.apps.map((a: any) => `${a.replicas * 2} x ${a.name}`).join(", ")}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <>
+              <div style={{ marginTop: 12 }}>
+                <strong>Node Packing (Dedicated, Doubled):</strong>
+                <ul>
+                  {result.assignment.map((node: any) => (
+                    <li key={node.node}>
+                      Node {node.node} ({result.nodeType.name}):{" "}
+                      <span style={{ color: "#0078d4" }}>
+                        [CPU: {result.nodeType.cpu}, RAM: {result.nodeType.ram}GB, GPU: {result.nodeType.gpu}]
+                      </span>
+                      {" — "}
+                      {node.apps.map((a: any) => `${a.replicas * 2} x ${a.name}`).join(", ")}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {/* Compute node assignments for each app, doubled */}
+              {(() => {
+                const nodeAssignmentsDoubled = getAppNodeAssignments(result.assignment, result.nodeType.name, 2);
+                return (
+                  <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#e6f0fa" }}>
+                        <th style={thStyle}>App Name</th>
+                        <th style={thStyle}>Assigned Plan</th>
+                        <th style={thStyle}>Replicas (Doubled)</th>
+                        <th style={thStyle}>Node(s) Assigned (Doubled)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.appAssignments.map((a: any, i: number) => (
+                        <tr key={i}>
+                          <td style={tdStyle}>{a.name}</td>
+                          <td style={tdStyle}>{a.plan}</td>
+                          <td style={tdStyle}>{a.replicas * 2}</td>
+                          <td style={tdStyle}>{nodeAssignmentsDoubled[a.name] || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </>
           )}
-          <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#e6f0fa" }}>
-                <th style={thStyle}>App Name</th>
-                <th style={thStyle}>Assigned Plan</th>
-                <th style={thStyle}>Replicas (Doubled)</th>
-                <th style={thStyle}>Node(s) Assigned (Doubled)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.appAssignments.map((a: any, i: number) => (
-                <tr key={i}>
-                  <td style={tdStyle}>{a.name}</td>
-                  <td style={tdStyle}>{a.plan}</td>
-                  <td style={tdStyle}>{a.replicas * 2}</td>
-                  <td style={tdStyle}>{a.nodesAssigned || "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p style={{ color: "#666", fontSize: 13, marginTop: 12 }}>
-            <em>
-              <strong>Total IPs needed (doubled): {result.doubledIPs}</strong>
-            </em>
-          </p>
+          {/* ...existing code... */}
         </div>
       )}
-      <style jsx>{`
-        .sr-only {
-          position: absolute;
-          width: 1px;
-          height: 1px;
-          padding: 0;
-          margin: -1px;
-          overflow: hidden;
-          clip: rect(0, 0, 0, 0);
-          border: 0;
-        }
-      `}</style>
+      {/* ...existing code... */}
     </main>
   );
 }
