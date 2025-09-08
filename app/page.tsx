@@ -642,6 +642,8 @@ export default function Home() {
               <strong>Details:</strong> {result.details}
             </p>
           )}
+          {/* Final Results Table */}
+          <h3 style={{ marginTop: 24 }}>Final Results</h3>
           {result.assignment && result.nodeType && (
             <div style={{ marginTop: 12 }}>
               <strong>Node Packing (Dedicated):</strong>
@@ -679,6 +681,46 @@ export default function Home() {
             <em>
               IP calculation: 14 reserved for infrastructure, +1 per node (Dedicated), +1 per 10 replicas (Consumption, rounded up).<br />
               <strong>Total IPs needed: {result.ips}</strong>
+            </em>
+          </p>
+          {/* Zero-downtime (doubled) Results Table */}
+          <h3 style={{ marginTop: 32 }}>Zero-downtime (Temporary Doubled) Results</h3>
+          {result.assignment && result.nodeType && (
+            <div style={{ marginTop: 12 }}>
+              <strong>Node Packing (Dedicated, Doubled):</strong>
+              <ul>
+                {result.assignment.map((node: any) => (
+                  <li key={node.node}>
+                    Node {node.node} ({result.nodeType.name}):{" "}
+                    {node.apps.map((a: any) => `${a.replicas * 2} x ${a.name}`).join(", ")}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#e6f0fa" }}>
+                <th style={thStyle}>App Name</th>
+                <th style={thStyle}>Assigned Plan</th>
+                <th style={thStyle}>Replicas (Doubled)</th>
+                <th style={thStyle}>Node(s) Assigned (Doubled)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.appAssignments.map((a: any, i: number) => (
+                <tr key={i}>
+                  <td style={tdStyle}>{a.name}</td>
+                  <td style={tdStyle}>{a.plan}</td>
+                  <td style={tdStyle}>{a.replicas * 2}</td>
+                  <td style={tdStyle}>{a.nodesAssigned || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ color: "#666", fontSize: 13, marginTop: 12 }}>
+            <em>
+              <strong>Total IPs needed (doubled): {result.doubledIPs}</strong>
             </em>
           </p>
         </div>
