@@ -132,7 +132,7 @@ export default function Home() {
       });
       // Dedicated
       let dedIPs = 0;
-      let nodeType = null, nodes = 0, assignment = [];
+      let nodeType: typeof DEDICATED_NODE_TYPES[number] | null = null, nodes = 0, assignment: { node: number, apps: { name: string, replicas: number }[] }[] = [];
       if (dedApps.length > 0) {
         const packed = packDedicatedNodes(dedApps);
         nodeType = packed.nodeType;
