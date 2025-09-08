@@ -797,14 +797,21 @@ export default function Home() {
                 // Calculate node assignments and IPs used for each app
                 let nodesAssigned = "-";
                 let ipsUsed = "-";
-                if (a.nodeType !== "-" && a.nodes !== "-") {
-                  if (a.nodes > 0 && a.perNodeCapacity > 0) {
-                    nodesAssigned = Array(a.replicas)
-                      .fill(null)
-                      .map((_, idx) => `Node ${Math.floor(idx / (a.perNodeCapacity || 1)) + 1} (${a.nodeType})`)
-                      .join(", ");
-                    ipsUsed = a.nodes;
+                if (a.nodeType !== "-" && a.nodes !== "-" && a.nodes > 0 && a.perNodeCapacity > 0) {
+                  // Assign replicas to minimal number of nodes
+                  const nodeAssignments: string[] = [];
+                  for (let node = 1; node <= a.nodes; node++) {
+                    const startReplica = (node - 1) * a.perNodeCapacity + 1;
+                    let endReplica = node * a.perNodeCapacity;
+                    if (endReplica > a.replicas) endReplica = a.replicas;
+                    nodeAssignments.push(
+                      a.replicas === 1
+                        ? `Node ${node} (${a.nodeType})`
+                        : `Node ${node} (${a.nodeType}): replicas ${startReplica}-${endReplica}`
+                    );
                   }
+                  nodesAssigned = nodeAssignments.join(", ");
+                  ipsUsed = a.nodes;
                 } else if (a.plan === "Consumption") {
                   ipsUsed = Math.ceil(a.replicas / 10).toString();
                 }
