@@ -503,7 +503,7 @@ export default function Home() {
         </div>
       )}
       <h1 style={{ textAlign: "center", marginBottom: 0 }}>
-        Azure Container App (ACA) Capacity Planner
+        Azure Container Apps (ACA) Capacity Planner
       </h1>
       <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 8 }}>
         <button
