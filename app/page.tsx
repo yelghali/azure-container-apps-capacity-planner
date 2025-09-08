@@ -10,7 +10,6 @@ type AppInput = {
   cpu: number;
   gpu: number;
   ram: number;
-  minReplicas: number; // <-- Remove the optional '?'
   replicas: number;
   plan?: PlanType;
 };
@@ -180,7 +179,7 @@ function getAppNodeAssignments(
 
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
-    { name: "", cpu: 0, gpu: 0, ram: 0, minReplicas: 1, replicas: 1, plan: "Consumption" },
+    { name: "", cpu: 0, gpu: 0, ram: 0, replicas: 1, plan: "Consumption" },
   ]);
   const [subnetSize, setSubnetSize] = useState("");
   const [planChoice, setPlanChoice] = useState<PlanChoice>("Consumption");
@@ -345,7 +344,6 @@ export default function Home() {
         cpu: 0,
         gpu: 0,
         ram: 0,
-        minReplicas: 1,
         replicas: 1,
         plan: planChoice === "Mix" ? "Consumption" : undefined,
       },
@@ -567,7 +565,6 @@ export default function Home() {
               <th style={thStyle}>CPU</th>
               <th style={thStyle}>GPU</th>
               <th style={thStyle}>RAM (GB)</th>
-              <th style={thStyle}>Min Replicas</th> {/* <-- Add this column */}
               <th style={thStyle}>Max Replicas</th>
               {planChoice === "Mix" && <th style={thStyle}>Plan</th>}
               <th style={thStyle}></th>
@@ -637,23 +634,6 @@ export default function Home() {
                     step={0.1}
                     onChange={(e) =>
                       handleAppChange(idx, "ram", e.target.value)
-                    }
-                    required
-                    style={inputStyle}
-                  />
-                </td>
-                <td style={tdStyle}>
-                  <label className="sr-only" htmlFor={`minReplicas-${idx}`}>
-                    Min Replicas
-                  </label>
-                  <input
-                    id={`minReplicas-${idx}`}
-                    type="number"
-                    value={app.minReplicas ?? 1}
-                    min={1}
-                    step={1}
-                    onChange={(e) =>
-                      handleAppChange(idx, "minReplicas", e.target.value)
                     }
                     required
                     style={inputStyle}
@@ -905,55 +885,33 @@ export default function Home() {
                         [CPU: {result.nodeType.cpu}, RAM: {result.nodeType.ram}GB, GPU: {result.nodeType.gpu}]
                       </span>
                       {" — "}
-                      {node.apps.map((a: any, i: number) => {
-                        // Find minReplicas for this app
-                        const appObj = apps.find(app => (app.name || `(App ${i + 1})`) === a.name);
-                        const minReplicas = appObj?.minReplicas ?? 1;
-                        return `${minReplicas} x ${a.name}`;
-                      }).join(", ")}
+                      {node.apps.map((a: any) => `${a.replicas * 2} x ${a.name}`).join(", ")}
                     </li>
                   ))}
                 </ul>
               </div>
-              {/* Compute node assignments for each app, using minReplicas */}
+              {/* Compute node assignments for each app, doubled */}
               {(() => {
-                // Build a map of app name to minReplicas
-                const minReplicasMap: Record<string, number> = {};
-                apps.forEach(app => {
-                  minReplicasMap[app.name || "(unnamed)"] = app.minReplicas ?? 1;
-                });
-                // Custom node assignment for minReplicas
-                const nodeAssignmentsMin = getAppNodeAssignments(
-                  result.assignment,
-                  result.nodeType.name,
-                  1 // We'll multiply manually below
-                );
+                const nodeAssignmentsDoubled = getAppNodeAssignments(result.assignment, result.nodeType.name, 2);
                 return (
                   <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ background: "#e6f0fa" }}>
                         <th style={thStyle}>App Name</th>
                         <th style={thStyle}>Assigned Plan</th>
-                        <th style={thStyle}>Replicas (Min)</th>
-                        <th style={thStyle}>Node(s) Assigned (Min)</th>
+                        <th style={thStyle}>Replicas (Doubled)</th>
+                        <th style={thStyle}>Node(s) Assigned (Doubled)</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {result.appAssignments.map((a: any, i: number) => {
-                        const minReplicas = minReplicasMap[a.name] ?? 1;
-                        // Repeat node assignment string minReplicas times
-                        const nodeAssignment = nodeAssignmentsMin[a.name]
-                          ? Array(minReplicas).fill(nodeAssignmentsMin[a.name]).join(", ")
-                          : "-";
-                        return (
-                          <tr key={i}>
-                            <td style={tdStyle}>{a.name}</td>
-                            <td style={tdStyle}>{a.plan}</td>
-                            <td style={tdStyle}>{minReplicas}</td>
-                            <td style={tdStyle}>{nodeAssignment}</td>
-                          </tr>
-                        );
-                      })}
+                      {result.appAssignments.map((a: any, i: number) => (
+                        <tr key={i}>
+                          <td style={tdStyle}>{a.name}</td>
+                          <td style={tdStyle}>{a.plan}</td>
+                          <td style={tdStyle}>{a.replicas * 2}</td>
+                          <td style={tdStyle}>{nodeAssignmentsDoubled[a.name] || "-"}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 );
