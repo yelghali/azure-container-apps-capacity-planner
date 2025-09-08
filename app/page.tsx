@@ -1,12 +1,6 @@
 "use client";
 
-import Image from "next/image";
-import { Inter } from "next/font/google";
 import { useState } from "react";
-import styles from "./page.module.css";
-import Content from "./message.mdx";
-
-const inter = Inter({ subsets: ["latin"] });
 
 type AppInput = {
   name: string;
@@ -61,156 +55,161 @@ export default function Home() {
   };
 
   return (
-    <main className={`${styles.main} ${inter.className}`} style={{ maxWidth: 600, margin: "2rem auto", fontFamily: "sans-serif" }}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <div>
-          <Content />
-        </div>
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-
-      <h1>Azure Container App Capacity Planner</h1>
-      <form onSubmit={handleSubmit}>
-        <h2>Apps</h2>
-        {apps.map((app, idx) => (
-          <div key={idx} style={{ border: "1px solid #ccc", padding: 10, marginBottom: 10 }}>
-            <input
-              type="text"
-              placeholder="App Name"
-              value={app.name}
-              onChange={e => handleAppChange(idx, "name", e.target.value)}
-              required
-              style={{ marginRight: 8 }}
-            />
-            <input
-              type="number"
-              placeholder="CPU"
-              value={app.cpu}
-              min={0}
-              step={0.1}
-              onChange={e => handleAppChange(idx, "cpu", e.target.value)}
-              required
-              style={{ width: 70, marginRight: 8 }}
-            />
-            <input
-              type="number"
-              placeholder="GPU"
-              value={app.gpu}
-              min={0}
-              step={1}
-              onChange={e => handleAppChange(idx, "gpu", e.target.value)}
-              required
-              style={{ width: 70, marginRight: 8 }}
-            />
-            <input
-              type="number"
-              placeholder="RAM (GB)"
-              value={app.ram}
-              min={0}
-              step={0.1}
-              onChange={e => handleAppChange(idx, "ram", e.target.value)}
-              required
-              style={{ width: 90, marginRight: 8 }}
-            />
-            <input
-              type="number"
-              placeholder="Max Replicas"
-              value={app.replicas}
-              min={1}
-              step={1}
-              onChange={e => handleAppChange(idx, "replicas", e.target.value)}
-              required
-              style={{ width: 110, marginRight: 8 }}
-            />
-            {apps.length > 1 && (
-              <button type="button" onClick={() => removeApp(idx)}>
-                Remove
-              </button>
-            )}
-          </div>
-        ))}
-        <button type="button" onClick={addApp} style={{ marginBottom: 16 }}>
-          + Add App
-        </button>
-        <div>
+    <main style={{ maxWidth: 700, margin: "2rem auto", fontFamily: "sans-serif" }}>
+      <h1 style={{ textAlign: "center", marginBottom: 0 }}>Azure Container App Capacity Planner</h1>
+      <p style={{ textAlign: "center", color: "#555", marginTop: 4, marginBottom: 32 }}>
+        Enter your subnet size and app requirements to estimate the best Azure plan and IP usage.
+      </p>
+      <form onSubmit={handleSubmit} style={{ background: "#f9f9f9", padding: 24, borderRadius: 12, boxShadow: "0 2px 8px #0001" }}>
+        <div style={{ marginBottom: 24 }}>
+          <label htmlFor="subnet" style={{ fontWeight: 500, marginRight: 8 }}>Subnet Size</label>
           <input
+            id="subnet"
             type="text"
-            placeholder="Subnet Size (e.g. /24)"
+            placeholder="e.g. /24"
             value={subnetSize}
             onChange={e => setSubnetSize(e.target.value)}
             required
-            style={{ marginRight: 8 }}
+            style={{ padding: 8, borderRadius: 4, border: "1px solid #ccc", width: 120 }}
           />
         </div>
-        <button type="submit" style={{ marginTop: 16 }}>
-          Calculate
+        <h2 style={{ marginBottom: 12 }}>Apps</h2>
+        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16 }}>
+          <thead>
+            <tr style={{ background: "#e6f0fa" }}>
+              <th style={thStyle}>Name</th>
+              <th style={thStyle}>CPU</th>
+              <th style={thStyle}>GPU</th>
+              <th style={thStyle}>RAM (GB)</th>
+              <th style={thStyle}>Max Replicas</th>
+              <th style={thStyle}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {apps.map((app, idx) => (
+              <tr key={idx}>
+                <td style={tdStyle}>
+                  <label className="sr-only" htmlFor={`name-${idx}`}>Name</label>
+                  <input
+                    id={`name-${idx}`}
+                    type="text"
+                    value={app.name}
+                    onChange={e => handleAppChange(idx, "name", e.target.value)}
+                    required
+                    style={inputStyle}
+                  />
+                </td>
+                <td style={tdStyle}>
+                  <label className="sr-only" htmlFor={`cpu-${idx}`}>CPU</label>
+                  <input
+                    id={`cpu-${idx}`}
+                    type="number"
+                    value={app.cpu}
+                    min={0}
+                    step={0.1}
+                    onChange={e => handleAppChange(idx, "cpu", e.target.value)}
+                    required
+                    style={inputStyle}
+                  />
+                </td>
+                <td style={tdStyle}>
+                  <label className="sr-only" htmlFor={`gpu-${idx}`}>GPU</label>
+                  <input
+                    id={`gpu-${idx}`}
+                    type="number"
+                    value={app.gpu}
+                    min={0}
+                    step={1}
+                    onChange={e => handleAppChange(idx, "gpu", e.target.value)}
+                    required
+                    style={inputStyle}
+                  />
+                </td>
+                <td style={tdStyle}>
+                  <label className="sr-only" htmlFor={`ram-${idx}`}>RAM (GB)</label>
+                  <input
+                    id={`ram-${idx}`}
+                    type="number"
+                    value={app.ram}
+                    min={0}
+                    step={0.1}
+                    onChange={e => handleAppChange(idx, "ram", e.target.value)}
+                    required
+                    style={inputStyle}
+                  />
+                </td>
+                <td style={tdStyle}>
+                  <label className="sr-only" htmlFor={`replicas-${idx}`}>Max Replicas</label>
+                  <input
+                    id={`replicas-${idx}`}
+                    type="number"
+                    value={app.replicas}
+                    min={1}
+                    step={1}
+                    onChange={e => handleAppChange(idx, "replicas", e.target.value)}
+                    required
+                    style={inputStyle}
+                  />
+                </td>
+                <td style={tdStyle}>
+                  {apps.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeApp(idx)}
+                      style={{
+                        background: "#ffeded",
+                        color: "#c00",
+                        border: "none",
+                        borderRadius: 4,
+                        padding: "4px 10px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button
+          type="button"
+          onClick={addApp}
+          style={{
+            background: "#e6f0fa",
+            color: "#0078d4",
+            border: "none",
+            borderRadius: 4,
+            padding: "8px 16px",
+            fontWeight: 500,
+            cursor: "pointer",
+            marginBottom: 16,
+          }}
+        >
+          + Add App
         </button>
+        <div>
+          <button
+            type="submit"
+            style={{
+              background: "#0078d4",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              padding: "10px 24px",
+              fontWeight: 600,
+              fontSize: 16,
+              cursor: "pointer",
+              marginTop: 8,
+            }}
+          >
+            Calculate
+          </button>
+        </div>
       </form>
       {result && (
-        <div style={{ marginTop: 32, padding: 16, border: "1px solid #0078d4", background: "#f3f9fd" }}>
+        <div style={{ marginTop: 32, padding: 16, border: "1px solid #0078d4", background: "#f3f9fd", borderRadius: 8 }}>
           <h2>Results</h2>
           <p>
             <strong>Recommended Plan:</strong> {result.plan}
@@ -220,6 +219,38 @@ export default function Home() {
           </p>
         </div>
       )}
+      <style jsx>{`
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          border: 0;
+        }
+      `}</style>
     </main>
   );
 }
+
+const thStyle: React.CSSProperties = {
+  padding: "8px 4px",
+  borderBottom: "2px solid #b3d1f7",
+  fontWeight: 600,
+  textAlign: "left",
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: "6px 4px",
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "6px 8px",
+  borderRadius: 4,
+  border: "1px solid #ccc",
+  fontSize: 15,
+  boxSizing: "border-box",
+};
