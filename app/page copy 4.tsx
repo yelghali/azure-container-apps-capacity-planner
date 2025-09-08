@@ -503,7 +503,7 @@ export default function Home() {
         </div>
       )}
       <h1 style={{ textAlign: "center", marginBottom: 0 }}>
-        Azure Container App (ACA) Capacity Planner
+        Azure Container App Capacity Planner
       </h1>
       <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 8 }}>
         <button
@@ -884,23 +884,6 @@ export default function Home() {
               >
                 View Azure SKUs Documentation
               </a>
-              <button
-                type="button"
-                aria-label="Show node capacities"
-                onClick={() => setShowNodeInfo((v) => !v)}
-                style={{
-                  background: "#e6f0fa",
-                  color: "#0078d4",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "6px 16px",
-                  fontWeight: 600,
-                  fontSize: 15,
-                  cursor: "pointer",
-                }}
-              >
-                Dedicated Node Types & Capacities
-              </button>
               <a
                 href="https://learn.microsoft.com/en-us/azure/container-apps/custom-virtual-networks?tabs=workload-profiles-env#subnet"
                 target="_blank"
