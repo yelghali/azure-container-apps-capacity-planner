@@ -619,6 +619,12 @@ export default function Home() {
           {result.warning && (
             <p style={{ color: "#c00", fontWeight: 500 }}>{result.warning}</p>
           )}
+          {/* Show error if available IPs is less than needed */}
+          {availableIPs !== null && result.ips > availableIPs && (
+            <p style={{ color: "#fff", background: "#c00", padding: 8, borderRadius: 4, fontWeight: 600 }}>
+              Error: Not enough available IPs in the subnet! ({availableIPs} available, {result.ips} required)
+            </p>
+          )}
           <p>
             <strong>Selected Plan:</strong> {result.plan}
           </p>
