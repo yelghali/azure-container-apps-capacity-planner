@@ -825,6 +825,7 @@ export default function Home() {
           )}
           {/* Final Results Table */}
           <h3 style={{ marginTop: 24 }}>Final Results</h3>
+          {/* Dedicated node packing section */}
           {result.assignment && result.nodeType && (
             <>
               <div style={{ marginTop: 12 }}>
@@ -842,36 +843,36 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              {/* Compute node assignments for each app */}
-              {(() => {
-                const nodeAssignments = getAppNodeAssignments(result.assignment, result.nodeType.name, 1);
-                return (
-                  <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "#e6f0fa" }}>
-                        <th style={thStyle}>App Name</th>
-                        <th style={thStyle}>Assigned Plan</th>
-                        <th style={thStyle}>Replicas</th>
-                        <th style={thStyle}>Node(s) Assigned</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.appAssignments.map((a: any, i: number) => (
-                        <tr key={i}>
-                          <td style={tdStyle}>{a.name}</td>
-                          <td style={tdStyle}>{a.plan}</td>
-                          <td style={tdStyle}>{a.replicas}</td>
-                          <td style={tdStyle}>{nodeAssignments[a.name] || "-"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                );
-              })()}
             </>
           )}
-          {/* ...existing code for IP calculation and summary... */}
-          {/* Zero-downtime (doubled) Results Table */}
+          {/* Always show results table */}
+          <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#e6f0fa" }}>
+                <th style={thStyle}>App Name</th>
+                <th style={thStyle}>Assigned Plan</th>
+                <th style={thStyle}>Replicas</th>
+                <th style={thStyle}>Node(s) Assigned</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.appAssignments.map((a: any, i: number) => (
+                <tr key={i}>
+                  <td style={tdStyle}>{a.name}</td>
+                  <td style={tdStyle}>{a.plan}</td>
+                  <td style={tdStyle}>{a.replicas}</td>
+                  <td style={tdStyle}>
+                    {a.nodesAssigned
+                      ? a.nodesAssigned
+                      : a.nodeType === "-" || a.nodes === "-"
+                      ? "-"
+                      : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {/* ...existing code for Zero-downtime (doubled) Results Table */}
           <h3 style={{ marginTop: 32 }}>Zero-downtime (Temporary Doubled) Results</h3>
           {result.assignment && result.nodeType && (
             <>
