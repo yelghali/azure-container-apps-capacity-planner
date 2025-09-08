@@ -163,7 +163,7 @@ export default function Home() {
     let bits: number | null = null;
     if (subnet.startsWith("/")) bits = parseInt(subnet.slice(1), 10);
     else if (/^\d+$/.test(subnet)) bits = parseInt(subnet, 10);
-    if (bits !== null && bits < 27) {
+    if (bits !== null && bits > 27) {
       warning = "Minimum subnet size for integration is /27!";
     }
 
