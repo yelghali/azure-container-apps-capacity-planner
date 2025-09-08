@@ -2,6 +2,7 @@
 const nextConfig = {
   pageExtensions: ["js", "jsx", "ts", "tsx", "mdx"],
   output: "export",
+  basePath: "/azure-container-apps-capacity-planner",
   experimental: {
     mdxRs: true,
   },
