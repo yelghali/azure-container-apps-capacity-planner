@@ -39,8 +39,11 @@ export default function Home() {
 
   const handleAppChange = (idx: number, field: keyof AppInput, value: string) => {
     const updated = [...apps];
-    updated[idx][field] =
-      field === "name" ? value : Number(value);
+    if (field === "name") {
+      updated[idx][field] = value as AppInput[typeof field];
+    } else {
+      updated[idx][field] = Number(value) as AppInput[typeof field];
+    }
     setApps(updated);
   };
 
