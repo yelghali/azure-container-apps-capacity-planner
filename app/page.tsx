@@ -821,7 +821,7 @@ export default function Home() {
           </p>
           <p style={{ color: "#666", fontSize: 13 }}>
             <em>
-              <strong>Estimated IPs Used During Upgrades (Zero-downtime, based on Min Replicas):</strong> {result.doubledIPs}
+              <strong>Estimated IPs Used During Upgrades (Zero-downtime, based on MaxReplicas based on peak usage) IPs are temporarily doubled during revision upgrade:</strong> {result.doubledIPs}
             </em>
           </p>
           {result.details && (
@@ -830,7 +830,7 @@ export default function Home() {
             </p>
           )}
           {/* Final Results Table */}
-          <h3 style={{ marginTop: 24 }}>Final Results</h3>
+          <h3 style={{ marginTop: 24 }}>Planning for Peak usage</h3>
           {/* Dedicated node packing section */}
           {result.assignment && result.nodeType && (
             <>
@@ -879,7 +879,7 @@ export default function Home() {
             </tbody>
           </table>
           {/* Zero-downtime (Upgrade Phase) Results */}
-          <h3 style={{ marginTop: 32 }}>Zero-downtime (Upgrade Phase) Results</h3>
+          <h3 style={{ marginTop: 32 }}>Planning for Zero-downtime (Upgrade Phase) during low usage periods</h3>
           {(() => {
             // Split apps for Mix, or use all for other plans
             let consApps: AppInput[] = [];
