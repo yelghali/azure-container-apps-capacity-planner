@@ -771,8 +771,11 @@ export default function Home() {
           <p>
             <strong>Selected Plan:</strong> {result.plan}
           </p>
+          
+          {/* Final Results Table */}
+          <h3 style={{ marginTop: 24 }}>Planning for Peak usage (based on MaxReplicas)</h3>
           <p>
-            <strong>Estimated IPs Used:</strong> {result.ips}
+            <strong>Estimated IPs Used during peak hours:</strong> {result.ips}
           </p>
      
           {result.details && (
@@ -780,8 +783,6 @@ export default function Home() {
               <strong>Details:</strong> {result.details}
             </p>
           )}
-          {/* Final Results Table */}
-          <h3 style={{ marginTop: 24 }}>Planning for Peak usage</h3>
           <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#e6f0fa" }}>
