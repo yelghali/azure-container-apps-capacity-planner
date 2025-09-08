@@ -145,6 +145,7 @@ export default function Home() {
   const [subnetSize, setSubnetSize] = useState("");
   const [planChoice, setPlanChoice] = useState<PlanChoice>("Consumption");
   const [result, setResult] = useState<any>(null);
+  const [showNodeInfo, setShowNodeInfo] = useState(false);
 
   const availableIPs = getAvailableIPs(subnetSize);
 
@@ -342,6 +343,82 @@ export default function Home() {
       <h1 style={{ textAlign: "center", marginBottom: 0 }}>
         Azure Container App Capacity Planner
       </h1>
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 8 }}>
+        <button
+          type="button"
+          aria-label="Show node capacities"
+          onClick={() => setShowNodeInfo((v) => !v)}
+          style={{
+            background: "#e6f0fa",
+            color: "#0078d4",
+            border: "none",
+            borderRadius: "50%",
+            width: 32,
+            height: 32,
+            fontWeight: 700,
+            fontSize: 18,
+            cursor: "pointer",
+            marginRight: 8,
+            position: "relative",
+          }}
+        >
+          i
+        </button>
+        {showNodeInfo && (
+          <div
+            style={{
+              position: "absolute",
+              top: 60,
+              right: 30,
+              zIndex: 10,
+              background: "#fff",
+              border: "1px solid #0078d4",
+              borderRadius: 8,
+              boxShadow: "0 2px 8px #0002",
+              padding: 16,
+              minWidth: 320,
+            }}
+          >
+            <strong>Dedicated Node Types & Capacities</strong>
+            <table style={{ width: "100%", marginTop: 8, borderCollapse: "collapse", fontSize: 14 }}>
+              <thead>
+                <tr style={{ background: "#e6f0fa" }}>
+                  <th style={{ padding: 4, textAlign: "left" }}>Name</th>
+                  <th style={{ padding: 4, textAlign: "left" }}>CPU</th>
+                  <th style={{ padding: 4, textAlign: "left" }}>RAM (GB)</th>
+                  <th style={{ padding: 4, textAlign: "left" }}>GPU</th>
+                </tr>
+              </thead>
+              <tbody>
+                {DEDICATED_NODE_TYPES.map((n) => (
+                  <tr key={n.name}>
+                    <td style={{ padding: 4 }}>{n.name}</td>
+                    <td style={{ padding: 4 }}>{n.cpu}</td>
+                    <td style={{ padding: 4 }}>{n.ram}</td>
+                    <td style={{ padding: 4 }}>{n.gpu}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button
+              type="button"
+              onClick={() => setShowNodeInfo(false)}
+              style={{
+                marginTop: 10,
+                background: "#0078d4",
+                color: "#fff",
+                border: "none",
+                borderRadius: 4,
+                padding: "4px 12px",
+                cursor: "pointer",
+                float: "right",
+              }}
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
       <p
         style={{
           textAlign: "center",
