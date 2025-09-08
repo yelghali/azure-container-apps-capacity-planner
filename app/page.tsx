@@ -821,7 +821,7 @@ export default function Home() {
           </p>
           <p style={{ color: "#666", fontSize: 13 }}>
             <em>
-              During zero-downtime deployments (single revision mode), required IPs are temporarily doubled: <strong>{result.doubledIPs}</strong>
+              <strong>Estimated IPs Used During Upgrades (Zero-downtime, based on Min Replicas):</strong> {result.doubledIPs}
             </em>
           </p>
           {result.details && (
