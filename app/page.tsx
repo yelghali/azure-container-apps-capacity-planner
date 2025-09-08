@@ -880,6 +880,23 @@ export default function Home() {
                     {/* Dedicated rows */}
                     {dedApps.map((app, i) => {
                       const perApp = dedUpgrade.perApp[i];
+                      let nodesAssigned = "-";
+                      if (perApp?.nodesNeeded > 0 && perApp?.perNodeCapacity > 0) {
+                        // Assign replicas to minimal number of nodes
+                        const nodeAssignments: string[] = [];
+                        for (let node = 1; node <= perApp.nodesNeeded; node++) {
+                          // Calculate how many replicas on this node
+                          const startReplica = (node - 1) * perApp.perNodeCapacity + 1;
+                          let endReplica = node * perApp.perNodeCapacity;
+                          if (endReplica > perApp.replicas) endReplica = perApp.replicas;
+                          nodeAssignments.push(
+                            perApp.replicas === 1
+                              ? `Node ${node} (${perApp.nodeTypeName})`
+                              : `Node ${node} (${perApp.nodeTypeName}): replicas ${startReplica}-${endReplica}`
+                          );
+                        }
+                        nodesAssigned = nodeAssignments.join(", ");
+                      }
                       return (
                         <tr key={`ded-${i}`}>
                           <td style={tdStyle}>{app.name}</td>
@@ -888,12 +905,7 @@ export default function Home() {
                           </td>
                           <td style={tdStyle}>{perApp?.replicas}</td>
                           <td style={tdStyle}>
-                            {perApp?.nodesNeeded > 0
-                              ? Array(perApp.replicas)
-                                  .fill(null)
-                                  .map((_, idx) => `Node ${Math.floor(idx / (perApp.perNodeCapacity || 1)) + 1} (${perApp.nodeTypeName})`)
-                                  .join(", ")
-                              : "-"}
+                            {nodesAssigned}
                           </td>
                           <td style={tdStyle}>
                             {perApp?.nodesNeeded > 0 ? perApp.nodesNeeded : "-"}
