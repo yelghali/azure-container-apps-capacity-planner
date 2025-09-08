@@ -903,10 +903,7 @@ export default function Home() {
             const consIPs = consRows.reduce((sum, row) => sum + row.ipUsed, 0);
 
             // Dedicated: bin-pack using minReplicas
-            let dedPacked = { nodeType: null, nodes: 0, assignment: [] as any[] };
-            if (dedApps.length > 0) {
-              dedPacked = packNodesForUpgrade(dedApps);
-            }
+            let dedPacked = dedApps.length > 0 ? packNodesForUpgrade(dedApps) : { nodeType: null, nodes: 0, assignment: [] as any[] };
 
             // Total IPs for upgrade phase
             const upgradeIPs = consIPs + (dedPacked.nodes || 0);
