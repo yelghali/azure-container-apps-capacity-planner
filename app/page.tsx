@@ -154,6 +154,7 @@ export default function Home() {
   const [result, setResult] = useState<any>(null);
   const [showNodeInfo, setShowNodeInfo] = useState(false);
   const [inputErrors, setInputErrors] = useState<string[]>([]);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   const availableIPs = getAvailableIPs(subnetSize);
 
@@ -349,6 +350,107 @@ export default function Home() {
 
   return (
     <main style={{ maxWidth: 700, margin: "2rem auto", fontFamily: "sans-serif" }}>
+      {/* How it works button and modal */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+        <button
+          type="button"
+          onClick={() => setShowHowItWorks(true)}
+          style={{
+            background: "#e6f0fa",
+            color: "#0078d4",
+            border: "none",
+            borderRadius: 6,
+            padding: "8px 18px",
+            fontWeight: 600,
+            fontSize: 16,
+            cursor: "pointer",
+            marginRight: 8,
+          }}
+        >
+          How it works
+        </button>
+      </div>
+      {showHowItWorks && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: "rgba(0,0,0,0.25)",
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 10,
+              maxWidth: 540,
+              width: "90%",
+              padding: 28,
+              boxShadow: "0 4px 24px #0003",
+              position: "relative"
+            }}
+          >
+            <h2 style={{ marginTop: 0 }}>How it works</h2>
+            <ol style={{ fontSize: 16, marginBottom: 0 }}>
+              <li>
+                <strong>Network IP Calculation:</strong> Enter your subnet size (e.g. <code>/24</code>). The tool calculates available IPs as <code>2^(32 - subnet bits) - 14</code> (the <code>-14</code> accounts for reserved Azure addresses).
+              </li>
+              <li>
+                <strong>App Requirements:</strong> For each app, specify CPU, RAM, GPU, minimum and maximum replicas, and (if using "Mix" plan) the plan type.
+              </li>
+              <li>
+                <strong>Plan Selection:</strong> Choose between <b>Consumption</b>, <b>Dedicated</b>, or <b>Mix</b>:
+                <ul>
+                  <li>
+                    <b>Consumption:</b> Each 10 replicas of an app require 1 IP. Resource limits: max 4 CPU, 8GB RAM, no GPU.
+                  </li>
+                  <li>
+                    <b>Dedicated:</b> Each app is assigned a node type (SKU) that fits its resource needs. Replicas are packed onto as few nodes as possible, based on node capacity.
+                  </li>
+                  <li>
+                    <b>Mix:</b> Some apps use Consumption, others Dedicated, calculated as above.
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <strong>Capacity Planning:</strong>
+                <ul>
+                  <li>
+                    <b>Peak Usage:</b> Uses the maximum replicas for each app to estimate required nodes and IPs.
+                  </li>
+                  <li>
+                    <b>Zero-downtime Upgrades:</b> Assumes minimum replicas are temporarily doubled during upgrades. The tool recalculates node packing and IPs for this scenario.
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <strong>Results:</strong> The tool displays required IPs, node assignments, and warnings if your subnet is too small for peak or upgrade scenarios.
+              </li>
+            </ol>
+            <button
+              type="button"
+              onClick={() => setShowHowItWorks(false)}
+              style={{
+                position: "absolute",
+                top: 12,
+                right: 16,
+                background: "#0078d4",
+                color: "#fff",
+                border: "none",
+                borderRadius: 4,
+                padding: "4px 12px",
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       <h1 style={{ textAlign: "center", marginBottom: 0 }}>
         Azure Container App Capacity Planner
       </h1>
