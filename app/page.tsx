@@ -858,29 +858,38 @@ export default function Home() {
             const consIPs = consRows.reduce((sum, row) => sum + row.ipUsed, 0);
 
             // Dedicated: bin-pack using minReplicas
-            let dedPacked = dedApps.length > 0 ? packNodesForUpgrade(dedApps) : { nodeType: null, nodes: 0, assignment: [] as any[] };
+            const dedUpgrade = getPerAppDedicatedNodes(dedApps, true);
 
             // Total IPs for upgrade phase
-            const upgradeIPs = consIPs + (dedPacked.nodes || 0);
+            const upgradeIPs = consIPs + (dedUpgrade.totalNodes || 0);
 
             return (
               <>
-                {dedPacked.assignment.length > 0 && dedPacked.nodeType && (
-                  <div style={{ marginTop: 12 }}>
-                    <strong>Node Packing (Dedicated, Upgrade Phase):</strong>
-                    <ul>
-                      {dedPacked.assignment.map((node: any) => (
-                        <li key={node.node}>
-                          Node {node.node} ({dedPacked.nodeType ? dedPacked.nodeType.name : "N/A"}):{" "}
-                          <span style={{ color: "#0078d4" }}>
-                            [CPU: {dedPacked.nodeType ? dedPacked.nodeType.cpu : "-"}, RAM: {dedPacked.nodeType ? dedPacked.nodeType.ram : "-"}GB, GPU: {dedPacked.nodeType ? dedPacked.nodeType.gpu : "-"}]
-                          </span>
-                          {" — "}
-                          {node.apps.map((a: any) => `${a.replicas} x ${a.name}`).join(", ")}
-                        </li>
+                {dedUpgrade.perApp.length > 0 && (
+                  <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#e6f0fa" }}>
+                        <th style={thStyle}>App Name</th>
+                        <th style={thStyle}>Assigned Plan</th>
+                        <th style={thStyle}>Replicas (Min)</th>
+                        <th style={thStyle}>Node Type</th>
+                        <th style={thStyle}>Nodes Needed</th>
+                        <th style={thStyle}>Replicas per Node</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dedUpgrade.perApp.map((row, i) => (
+                        <tr key={i}>
+                          <td style={tdStyle}>{row.appName}</td>
+                          <td style={tdStyle}>{row.plan}</td>
+                          <td style={tdStyle}>{row.replicas}</td>
+                          <td style={tdStyle}>{row.nodeTypeName}</td>
+                          <td style={tdStyle}>{row.nodesNeeded}</td>
+                          <td style={tdStyle}>{row.perNodeCapacity}</td>
+                        </tr>
                       ))}
-                    </ul>
-                  </div>
+                    </tbody>
+                  </table>
                 )}
                 <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
                   <thead>
@@ -907,22 +916,31 @@ export default function Home() {
                     {dedApps.map((app, i) => {
                       // Find node assignments for this app in dedPacked
                       const nodeAssignments: string[] = [];
-                      dedPacked.assignment.forEach((node: any) => {
-                        node.apps.forEach((a: any) => {
-                          if (a.name === (app.name || `(App ${i + 1})`)) {
-                            for (let r = 0; r < a.replicas; r++) {
-                              nodeAssignments.push(`Node ${node.node} (${dedPacked.nodeType?.name})`);
-                            }
+                      dedUpgrade.perApp.forEach((a: any) => {
+                        if (a.appName === (app.name || `(App ${i + 1})`)) {
+                          for (let r = 0; r < a.replicas; r++) {
+                            nodeAssignments.push(`Node ${a.nodesNeeded} (${a.nodeTypeName})`);
                           }
-                        });
+                        }
                       });
                       return (
                         <tr key={`ded-${i}`}>
                           <td style={tdStyle}>{app.name}</td>
-                          <td style={tdStyle}>{dedPacked.nodeType ? `Dedicated (${dedPacked.nodeType.name})` : "Dedicated (N/A)"}</td>
+                          <td style={tdStyle}>
+                            {dedUpgrade.perApp[i]?.plan || "Dedicated (N/A)"}
+                          </td>
                           <td style={tdStyle}>{app.minReplicas}</td>
-                          <td style={tdStyle}>{nodeAssignments.length > 0 ? nodeAssignments.join(", ") : "-"}</td>
-                          <td style={tdStyle}>{dedPacked.nodes > 0 ? "-" : "-"}</td>
+                          <td style={tdStyle}>
+                            {dedUpgrade.perApp[i]?.nodesNeeded > 0
+                              ? Array(app.minReplicas)
+                                  .fill(null)
+                                  .map((_, idx) => `Node ${Math.floor(idx / (dedUpgrade.perApp[i]?.perNodeCapacity || 1)) + 1} (${dedUpgrade.perApp[i]?.nodeTypeName})`)
+                                  .join(", ")
+                              : "-"}
+                          </td>
+                          <td style={tdStyle}>
+                            {dedUpgrade.perApp[i]?.nodesNeeded > 0 ? dedUpgrade.perApp[i].nodesNeeded : "-"}
+                          </td>
                         </tr>
                       );
                     })}
@@ -960,13 +978,3 @@ const inputStyle: React.CSSProperties = {
   fontSize: 15,
   boxSizing: "border-box",
 };
-
-// Helper for upgrade phase: bin-pack using minReplicas for Dedicated apps
-function packNodesForUpgrade(apps: AppInput[]) {
-  // For Dedicated, bin-pack using minReplicas
-  const minApps = apps.map(app => ({
-    ...app,
-    replicas: app.minReplicas,
-  }));
-  return packDedicatedNodes(minApps);
-}
