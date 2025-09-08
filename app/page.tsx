@@ -207,7 +207,28 @@ export default function Home() {
 
       const dedIPs = dedResult.totalNodes;
       const totalIPs = consIPs + dedIPs;
-      details = `Consumption apps: ${consApps.length}, Dedicated apps: ${dedApps.length}`;
+      // --- DETAILED DETAILS LINE ---
+      const details = [
+        consApps.length > 0
+          ? consApps
+              .map(
+                a =>
+                  `${a.name || "(unnamed)"}: ${Math.ceil(a.replicas / 10)} IPs (Consumption)`
+              )
+              .join("; ")
+          : null,
+        dedResult.perApp.length > 0
+          ? dedResult.perApp
+              .map(
+                a =>
+                  `${a.appName}: ${a.nodesNeeded} x ${a.nodeTypeName} (up to ${a.perNodeCapacity} per node)`
+              )
+              .join("; ")
+          : null,
+      ]
+        .filter(Boolean)
+        .join("; ");
+      // --- END DETAILS LINE ---
       return {
         plan: "Mix",
         ips: totalIPs,
@@ -408,7 +429,7 @@ export default function Home() {
                     <b>Consumption:</b> Each 10 replicas of an app require 1 IP. Resource limits: max 4 CPU, 8GB RAM, no GPU.
                   </li>
                   <li>
-                    <b>Dedicated:</b> Each app is assigned a node type (SKU) that fits its resource needs. Replicas are packed onto as few nodes as possible, based on node capacity.
+                    <b>Dedicated:</b> <b>Scheduling logic:</b> For each app, the tool chooses the <u>smallest dedicated node type (SKU)</u> that can fit the app’s CPU, RAM, and GPU requirements. Replicas are then packed onto as few nodes as possible, based on that node’s capacity.
                   </li>
                   <li>
                     <b>Mix:</b> Some apps use Consumption, others Dedicated, calculated as above.
