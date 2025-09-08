@@ -865,32 +865,7 @@ export default function Home() {
 
             return (
               <>
-                {dedUpgrade.perApp.length > 0 && (
-                  <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "#e6f0fa" }}>
-                        <th style={thStyle}>App Name</th>
-                        <th style={thStyle}>Assigned Plan</th>
-                        <th style={thStyle}>Replicas (Min)</th>
-                        <th style={thStyle}>Node Type</th>
-                        <th style={thStyle}>Nodes Needed</th>
-                        <th style={thStyle}>Replicas per Node</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dedUpgrade.perApp.map((row, i) => (
-                        <tr key={i}>
-                          <td style={tdStyle}>{row.appName}</td>
-                          <td style={tdStyle}>{row.plan}</td>
-                          <td style={tdStyle}>{row.replicas}</td>
-                          <td style={tdStyle}>{row.nodeTypeName}</td>
-                          <td style={tdStyle}>{row.nodesNeeded}</td>
-                          <td style={tdStyle}>{row.perNodeCapacity}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                {/* REMOVE the first (detailed) table for dedicated apps here */}
                 <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: "#e6f0fa" }}>
@@ -914,15 +889,6 @@ export default function Home() {
                     ))}
                     {/* Dedicated rows */}
                     {dedApps.map((app, i) => {
-                      // Find node assignments for this app in dedPacked
-                      const nodeAssignments: string[] = [];
-                      dedUpgrade.perApp.forEach((a: any) => {
-                        if (a.appName === (app.name || `(App ${i + 1})`)) {
-                          for (let r = 0; r < a.replicas; r++) {
-                            nodeAssignments.push(`Node ${a.nodesNeeded} (${a.nodeTypeName})`);
-                          }
-                        }
-                      });
                       return (
                         <tr key={`ded-${i}`}>
                           <td style={tdStyle}>{app.name}</td>
