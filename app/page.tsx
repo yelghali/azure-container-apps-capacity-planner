@@ -89,7 +89,12 @@ function packDedicatedNodes(apps: AppInput[]) {
   return { nodeType, nodes, assignment };
 }
 
-function getDedicatedNodesPerApp(apps: AppInput[]) {
+function getDedicatedNodesPerApp(apps: AppInput[]): {
+  nodeType: typeof DEDICATED_NODE_TYPES[number] | null,
+  perAppNodes: Record<string, number>,
+  nodes: number,
+  assignment: { node: number, apps: { name: string, replicas: number }[] }[]
+} {
   // Find the smallest node type that fits the largest per-replica requirements
   let maxCpu = 0, maxRam = 0, maxGpu = 0;
   apps.forEach(app => {
@@ -118,12 +123,13 @@ function getDedicatedNodesPerApp(apps: AppInput[]) {
         app.gpu > 0 ? Math.floor(nodeGpu / app.gpu) : Infinity
       );
       if (fit > 0) {
-        nodeApps.push({ name: app.name || `(App ${i + 1})`, replicas: fit });
+        const appKey = app.name || `(App ${i + 1})`;
+        nodeApps.push({ name: appKey, replicas: fit });
         nodeCpu -= fit * app.cpu;
         nodeRam -= fit * app.ram;
         nodeGpu -= fit * app.gpu;
         app.replicas -= fit;
-        perAppNodes[app.name || `(App ${i + 1})`] = (perAppNodes[app.name || `(App ${i + 1})`] || 0) + 1;
+        perAppNodes[appKey] = (perAppNodes[appKey] || 0) + 1;
       }
     }
     assignment.push({ node: nodes + 1, apps: nodeApps });
@@ -246,7 +252,7 @@ export default function Home() {
           name: app.name || "(unnamed)",
           plan: nodeType ? `Dedicated (${nodeType.name})` : "Dedicated (N/A)",
           replicas: app.replicas,
-          ipUsed: perAppNodes[app.name] || 0,
+          ipUsed: perAppNodes[app.name as string] || 0,
           nodeType: nodeType ? nodeType.name : "-",
           nodes: nodes,
         });
