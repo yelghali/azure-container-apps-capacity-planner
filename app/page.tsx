@@ -317,7 +317,13 @@ export default function Home() {
     } else if (field === "baselineReplicas") {
       updated[idx][field] = Number(value) as AppInput[typeof field];
       updated[idx].baselineTouched = true; // User manually changed baseline
-    } else {
+    } else if (
+      field === "cpu" ||
+      field === "gpu" ||
+      field === "ram" ||
+      field === "minReplicas" ||
+      field === "replicas"
+    ) {
       updated[idx][field] = Number(value) as AppInput[typeof field];
       // If min or max changes, update baseline if not touched
       if ((field === "replicas" || field === "minReplicas") && !updated[idx].baselineTouched) {
