@@ -994,6 +994,15 @@ export default function Home() {
           <br />
           {/* Zero-downtime (Upgrade Phase) Results */}
           <h3 style={{ marginTop: 32 }}>Planning for Zero-downtime (Upgrade Phase) during low usage periods</h3>
+                          {availableIPs !== null && upgradeIPs > availableIPs && (
+                  <p style={{ color: "#fff", background: "#c00", padding: 8, borderRadius: 4, fontWeight: 600 }}>
+                    Error: Not enough available IPs for zero-downtime revision updates!<br />
+                    ({availableIPs} available, {upgradeIPs} required for revision update)<br />
+                    <span style={{ fontWeight: 400 }}>
+                      Capacity planning must account for revision updates (temporary doubling of resources).
+                    </span>
+                  </p>
+                )}
           {(() => {
             // Split apps for Mix, or use all for other plans
             let consApps: AppInput[] = [];
@@ -1057,15 +1066,7 @@ export default function Home() {
                 <p style={{ marginTop: 12 }}>
                   <strong>Estimated IPs Used During Upgrades (Zero-downtime, based on Min Replicas Doubled):</strong> {upgradeIPs}
                 </p>
-                {availableIPs !== null && upgradeIPs > availableIPs && (
-                  <p style={{ color: "#fff", background: "#c00", padding: 8, borderRadius: 4, fontWeight: 600 }}>
-                    Error: Not enough available IPs for zero-downtime revision updates!<br />
-                    ({availableIPs} available, {upgradeIPs} required for revision update)<br />
-                    <span style={{ fontWeight: 400 }}>
-                      Capacity planning must account for revision updates (temporary doubling of resources).
-                    </span>
-                  </p>
-                )}
+
                 <table style={{ width: "100%", marginTop: 16, background: "#fff", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: "#e6f0fa" }}>
