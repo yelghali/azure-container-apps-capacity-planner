@@ -10,8 +10,7 @@ type AppInput = {
   cpu: number;
   gpu: number;
   ram: number;
-  minReplicas: number;
-  baselineReplicas: number; // <-- add this
+  minReplicas: number; // <-- add this
   replicas: number;
   plan?: PlanType;
 };
@@ -148,7 +147,7 @@ function getAppNodeAssignments(
 
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
-    { name: "", cpu: 0, gpu: 0, ram: 0, minReplicas: 1, baselineReplicas: 1, replicas: 1, plan: "Consumption" },
+    { name: "", cpu: 0, gpu: 0, ram: 0, minReplicas: 1, replicas: 1, plan: "Consumption" },
   ]);
   const [subnetSize, setSubnetSize] = useState("");
   const [planChoice, setPlanChoice] = useState<PlanChoice>("Consumption");
@@ -316,30 +315,10 @@ export default function Home() {
     } else {
       updated[idx][field] = Number(value) as AppInput[typeof field];
     }
-    // If max or min changes, update baseline if user hasn't overridden
-    if (field === "replicas" || field === "minReplicas") {
-      const min = field === "minReplicas" ? Number(value) : updated[idx].minReplicas;
-      const max = field === "replicas" ? Number(value) : updated[idx].replicas;
-      // Only auto-update if baseline equals old computed value or is out of new range
-      const oldBaseline = updated[idx].baselineReplicas;
-      const computed = Math.round(min + (max - min) / 2);
-      if (
-        oldBaseline === undefined ||
-        oldBaseline === Math.round(min + (max - min) / 2) ||
-        oldBaseline < min ||
-        oldBaseline > max
-      ) {
-        updated[idx].baselineReplicas = computed;
-      }
-    }
     setApps(updated);
   };
 
   const addApp = () => {
-    // Default baseline = min + (max-min)/2
-    const min = 1;
-    const max = 1;
-    const baseline = Math.round(min + (max - min) / 2);
     setApps([
       ...apps,
       {
@@ -347,9 +326,8 @@ export default function Home() {
         cpu: 0,
         gpu: 0,
         ram: 0,
-        minReplicas: min,
-        baselineReplicas: baseline,
-        replicas: max,
+        minReplicas: 1,
+        replicas: 1,
         plan: planChoice === "Mix" ? "Consumption" : undefined,
       },
     ]);
@@ -705,7 +683,6 @@ export default function Home() {
               <th style={thStyle}>GPU</th>
               <th style={thStyle}>RAM (GB)</th>
               <th style={thStyle}>Min Replicas</th>
-              <th style={thStyle}>Baseline Replicas</th> {/* <-- new column */}
               <th style={thStyle}>Max Replicas</th>
               {planChoice === "Mix" && <th style={thStyle}>Plan</th>}
               <th style={thStyle}></th>
@@ -777,21 +754,6 @@ export default function Home() {
                     step={1}
                     onChange={(e) =>
                       handleAppChange(idx, "minReplicas", e.target.value)
-                    }
-                    required
-                    style={inputStyle}
-                  />
-                </td>
-                <td style={tdStyle}>
-                  <input
-                    id={`baselineReplicas-${idx}`}
-                    type="number"
-                    value={app.baselineReplicas}
-                    min={app.minReplicas}
-                    max={app.replicas}
-                    step={1}
-                    onChange={(e) =>
-                      handleAppChange(idx, "baselineReplicas", e.target.value)
                     }
                     required
                     style={inputStyle}
