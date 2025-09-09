@@ -996,7 +996,7 @@ export default function Home() {
           <br />
           <br />
           {/* Zero-downtime (Upgrade Phase) Results */}
-          <h3 style={{ marginTop: 32 }}>Planning for Zero-downtime (Upgrade Phase) during low usage periods</h3>
+          <h3 style={{ marginTop: 32 }}>Planning for Zero-downtime Upgrade Phase during low usage periods (based on MinReplicas)</h3>
           {(() => {
             // Split apps for Mix, or use all for other plans
             let consApps: AppInput[] = [];
