@@ -928,16 +928,7 @@ export default function Home() {
               Error: Not enough available IPs in the subnet! ({availableIPs} available, {result.ips} required)
             </p>
           )}
-          {/* Show error if available IPs is less than doubled IPs */}
-          {availableIPs !== null && result.doubledIPs > availableIPs && (
-            <p style={{ color: "#fff", background: "#c00", padding: 8, borderRadius: 4, fontWeight: 600 }}>
-              Error: Not enough available IPs for zero-downtime revision updates!<br />
-              ({availableIPs} available, {result.doubledIPs} required for revision update)<br />
-              <span style={{ fontWeight: 400 }}>
-                Capacity planning must account for revision updates (temporary doubling of resources).
-              </span>
-            </p>
-          )}
+          
           <p>
             <strong>Selected Plan:</strong> {result.plan}
           </p>
