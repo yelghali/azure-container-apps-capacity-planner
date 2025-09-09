@@ -431,6 +431,15 @@ export default function Home() {
     } else if (field === "baselineReplicas") {
       updated[idx][field] = Number(value) as AppInput[typeof field];
       updated[idx].baselineTouched = true;
+
+      // If baseline > replicas, set both to the biggest value
+      if (updated[idx].baselineReplicas > updated[idx].replicas) {
+        const biggest = Math.max(updated[idx].baselineReplicas, updated[idx].replicas);
+        updated[idx].baselineReplicas = biggest;
+        updated[idx].replicas = biggest;
+        updated[idx].baselineTouched = false;
+        validationMessage = `App ${updated[idx].name || idx + 1}: Baseline Replicas cannot be greater than Max Replicas. Both set to ${biggest}.`;
+      }
     } else if (
       field === "cpu" ||
       field === "gpu" ||
@@ -458,18 +467,6 @@ export default function Home() {
         updated[idx].baselineReplicas = biggest;
         updated[idx].baselineTouched = false;
         validationMessage = `App ${updated[idx].name || idx + 1}: Min Replicas cannot be greater than Max or Baseline. All set to ${biggest}.`;
-      }
-
-      // If baseline > replicas, set both to the biggest value
-      if (
-        field === "baselineReplicas" &&
-        updated[idx].baselineReplicas > updated[idx].replicas
-      ) {
-        const biggest = Math.max(updated[idx].baselineReplicas, updated[idx].replicas);
-        updated[idx].baselineReplicas = biggest;
-        updated[idx].replicas = biggest;
-        updated[idx].baselineTouched = false;
-        validationMessage = `App ${updated[idx].name || idx + 1}: Baseline Replicas cannot be greater than Max Replicas. Both set to ${biggest}.`;
       }
 
       // If min or max changes, update baseline if not touched and not already fixed above
