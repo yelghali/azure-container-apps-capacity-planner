@@ -1031,6 +1031,9 @@ export default function Home() {
 
             return (
               <>
+                <p style={{ marginTop: 12 }}>
+                  <strong>Estimated IPs Used During Upgrades (Zero-downtime, based on Min Replicas Doubled):</strong> {upgradeIPs}
+                </p>
                              {/* Add upgrade details summary here */}
                 {(consRows.length > 0 || dedUpgrade.perApp.length > 0) && (
                   <p style={{ marginTop: 8 }}>
@@ -1057,9 +1060,7 @@ export default function Home() {
                       .join("; ")}
                   </p>
                 )}
-                <p style={{ marginTop: 12 }}>
-                  <strong>Estimated IPs Used During Upgrades (Zero-downtime, based on Min Replicas Doubled):</strong> {upgradeIPs}
-                </p>
+              
                 {availableIPs !== null && upgradeIPs > availableIPs && (
                   <p style={{ color: "#fff", background: "#c00", padding: 8, borderRadius: 4, fontWeight: 600 }}>
                     Error: Not enough available IPs for zero-downtime revision updates!<br />
