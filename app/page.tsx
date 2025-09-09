@@ -147,6 +147,22 @@ function getAppNodeAssignments(
   return result;
 }
 
+// Add this function before Home()
+function validateAllApps(apps: AppInput[], planChoice: PlanChoice): string[] {
+  const errors: string[] = [];
+  apps.forEach((app, idx) => {
+    const err = validateAppInput(app, planChoice);
+    if (err) errors.push(`App ${app.name || idx + 1}: ${err}`);
+    if (app.cpu <= 0) errors.push(`App ${app.name || idx + 1}: CPU must be greater than 0.`);
+    if (app.ram <= 0) errors.push(`App ${app.name || idx + 1}: RAM must be greater than 0.`);
+    if (app.minReplicas > app.replicas) errors.push(`App ${app.name || idx + 1}: Min Replicas must be less than or equal to Max Replicas.`);
+    if (app.baselineReplicas < app.minReplicas || app.baselineReplicas > app.replicas) {
+      errors.push(`App ${app.name || idx + 1}: Baseline Replicas must be between Min and Max Replicas.`);
+    }
+  });
+  return errors;
+}
+
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
     { name: "", cpu: 0, gpu: 0, ram: 0, minReplicas: 1, baselineReplicas: 1, replicas: 1, plan: "Consumption", baselineTouched: false },
@@ -495,17 +511,7 @@ export default function Home() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Validate all apps
-    const errors: string[] = [];
-    apps.forEach((app, idx) => {
-      const err = validateAppInput(app, planChoice);
-      if (err) errors.push(`App ${app.name || idx + 1}: ${err}`);
-      if (app.cpu <= 0) errors.push(`App ${app.name || idx + 1}: CPU must be greater than 0.`);
-      if (app.ram <= 0) errors.push(`App ${app.name || idx + 1}: RAM must be greater than 0.`);
-      if (app.minReplicas > app.replicas) errors.push(`App ${app.name || idx + 1}: Min Replicas must be less than or equal to Max Replicas.`);
-      if (app.baselineReplicas < app.minReplicas || app.baselineReplicas > app.replicas) {
-        errors.push(`App ${app.name || idx + 1}: Baseline Replicas must be between Min and Max Replicas.`);
-      }
-    });
+    const errors = validateAllApps(apps, planChoice);
     setInputErrors(errors);
     if (errors.length > 0) return;
     setResult(calculate(apps, subnetSize, planChoice));
@@ -532,6 +538,9 @@ export default function Home() {
 
   // Add this handler for the Suggest Compute button
   const handleSuggestCompute = () => {
+    const errors = validateAllApps(apps, planChoice);
+    setInputErrors(errors);
+    if (errors.length > 0) return;
     setComputeAlloc(suggestComputeAllocation(apps, planChoice));
     setInputErrors([]); // clear any previous error
   };
