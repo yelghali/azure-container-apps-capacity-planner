@@ -551,4 +551,47 @@ export default function Home() {
       // Validate CPU and RAM > 0 for all apps
       const errors: string[] = [];
       apps.forEach((app, idx) => {
-        if
+        if (app.cpu <= 0) errors.push(`App ${app.name || idx + 1}: CPU must be greater than 0.`);
+        if (app.ram <= 0) errors.push(`App ${app.name || idx + 1}: RAM must be greater than 0.`);
+      });
+      const otherErrors = validateAllApps(apps, planChoice);
+      const allErrors = [...errors, ...otherErrors];
+      setInputErrors(allErrors);
+      if (allErrors.length > 0) {
+        setComputeAlloc(null);
+        return;
+      }
+      setComputeAlloc(suggestComputeAllocation(apps, planChoice));
+      setInputErrors([]);
+    } catch (e: any) {
+      setInputErrors([e?.message || "An error occurred while suggesting compute allocation."]);
+      setComputeAlloc(null);
+    }
+  };
+
+  return (
+    <main style={{ maxWidth: 1100, margin: "2rem auto", fontFamily: "sans-serif" }}>
+      {/* ...existing code... */}
+    </main>
+  );
+}
+
+const thStyle: React.CSSProperties = {
+  padding: "8px 4px",
+  borderBottom: "2px solid #b3d1f7",
+  fontWeight: 600,
+  textAlign: "left",
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: "6px 4px",
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "6px 8px",
+  borderRadius: 4,
+  border: "1px solid #ccc",
+  fontSize: 15,
+  boxSizing: "border-box",
+};
