@@ -157,104 +157,8 @@ export default function Home() {
   const [showNodeInfo, setShowNodeInfo] = useState(false);
   const [inputErrors, setInputErrors] = useState<string[]>([]);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
-  const [computeAlloc, setComputeAlloc] = useState<any[] | null>(null);
 
   const availableIPs = getAvailableIPs(subnetSize);
-
-  // Helper: For each app, assign a compute type and show node allocation for baselineReplicas
-  function suggestComputeAllocation(apps: AppInput[], planChoice: PlanChoice) {
-    // For each app, assign a node type (Dedicated) or "Consumption"
-    // For Dedicated: pack baselineReplicas into as few nodes as possible
-    // For Consumption: just show "Consumption"
-    const rows: {
-      appName: string;
-      plan: string;
-      baselineReplicas: number;
-      computeType: string;
-      nodesNeeded: number | string;
-      perNodeCapacity: number | string;
-      allocation: string;
-    }[] = [];
-
-    // Split apps by plan if Mix, else all same
-    let consApps: AppInput[] = [];
-    let dedApps: AppInput[] = [];
-    if (planChoice === "Mix") {
-      consApps = apps.filter(a => a.plan === "Consumption");
-      dedApps = apps.filter(a => a.plan === "Dedicated");
-    } else if (planChoice === "Consumption") {
-      consApps = apps;
-    } else if (planChoice === "Dedicated") {
-      dedApps = apps;
-    }
-
-    // Consumption apps
-    consApps.forEach(app => {
-      rows.push({
-        appName: app.name || "(unnamed)",
-        plan: "Consumption",
-        baselineReplicas: app.baselineReplicas,
-        computeType: "Consumption",
-        nodesNeeded: "-",
-        perNodeCapacity: "-",
-        allocation: "-",
-      });
-    });
-
-    // Dedicated apps: assign node type and pack baselineReplicas
-    dedApps.forEach(app => {
-      // Find smallest node type that fits a single replica
-      const nodeType = DEDICATED_NODE_TYPES.find(
-        n => n.cpu >= app.cpu && n.ram >= app.ram && n.gpu >= app.gpu
-      );
-      if (!nodeType) {
-        rows.push({
-          appName: app.name || "(unnamed)",
-          plan: "Dedicated",
-          baselineReplicas: app.baselineReplicas,
-          computeType: "N/A",
-          nodesNeeded: "N/A",
-          perNodeCapacity: "N/A",
-          allocation: "No suitable node type",
-        });
-        return;
-      }
-      // How many replicas fit on one node of this type?
-      const perNodeCapacity = Math.min(
-        Math.floor(nodeType.cpu / app.cpu),
-        Math.floor(nodeType.ram / app.ram),
-        app.gpu > 0 ? Math.floor(nodeType.gpu / app.gpu) : Infinity
-      );
-      const nodesNeeded = perNodeCapacity > 0 ? Math.ceil(app.baselineReplicas / perNodeCapacity) : 0;
-      // Allocation string
-      let allocation = "-";
-      if (nodesNeeded > 0 && perNodeCapacity > 0) {
-        const nodeAssignments: string[] = [];
-        for (let node = 1; node <= nodesNeeded; node++) {
-          const startReplica = (node - 1) * perNodeCapacity + 1;
-          let endReplica = node * perNodeCapacity;
-          if (endReplica > app.baselineReplicas) endReplica = app.baselineReplicas;
-          nodeAssignments.push(
-            app.baselineReplicas === 1
-              ? `Node ${node} (${nodeType.name})`
-              : `Node ${node} (${nodeType.name}): replicas ${startReplica}-${endReplica}`
-          );
-        }
-        allocation = nodeAssignments.join(", ");
-      }
-      rows.push({
-        appName: app.name || "(unnamed)",
-        plan: "Dedicated",
-        baselineReplicas: app.baselineReplicas,
-        computeType: nodeType.name,
-        nodesNeeded,
-        perNodeCapacity,
-        allocation,
-      });
-    });
-
-    return rows;
-  }
 
   function calculate(apps: AppInput[], subnet: string, planChoice: PlanChoice) {
     let warning = "";
@@ -528,12 +432,6 @@ export default function Home() {
         }))
       );
     }
-  };
-
-  // Add this handler for the Suggest Compute button
-  const handleSuggestCompute = () => {
-    setComputeAlloc(suggestComputeAllocation(apps, planChoice));
-    setInputErrors([]); // clear any previous error
   };
 
   return (
@@ -1022,73 +920,22 @@ export default function Home() {
               fontSize: 16,
               cursor: "pointer",
               marginTop: 8,
-              marginRight: 12,
             }}
           >
             Calculate
           </button>
-          <button
-            type="button"
-            onClick={handleSuggestCompute}
-            style={{
-              background: "#e6f0fa",
-              color: "#0078d4",
-              border: "none",
-              borderRadius: 4,
-              padding: "10px 24px",
-              fontWeight: 600,
-              fontSize: 16,
-              cursor: "pointer",
-              marginTop: 8,
-            }}
-          >
-            Suggest Compute
-          </button>
         </div>
       </form>
-
-      {/* --- Compute Allocation Table --- */}
-      {computeAlloc && (
-        <div
-          style={{
-            margin: "32px 0 32px 0",
-            padding: 16,
-            border: "1px solid #0078d4",
-            background: "#f8fbff",
-            borderRadius: 8,
-          }}
-        >
-          <h2 style={{ marginTop: 0 }}>Compute Allocation</h2>
-          <table style={{ width: "100%", background: "#fff", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#e6f0fa" }}>
-                <th style={thStyle}>App Name</th>
-                <th style={thStyle}>Plan</th>
-                <th style={thStyle}>Baseline Replicas</th>
-                <th style={thStyle}>Compute Type</th>
-                <th style={thStyle}>Nodes Needed</th>
-                <th style={thStyle}>Replicas per Node</th>
-                <th style={thStyle}>Allocation</th>
-              </tr>
-            </thead>
-            <tbody>
-              {computeAlloc.map((row, i) => (
-                <tr key={i}>
-                  <td style={tdStyle}>{row.appName}</td>
-                  <td style={tdStyle}>{row.plan}</td>
-                  <td style={tdStyle}>{row.baselineReplicas}</td>
-                  <td style={tdStyle}>{row.computeType}</td>
-                  <td style={tdStyle}>{row.nodesNeeded}</td>
-                  <td style={tdStyle}>{row.perNodeCapacity}</td>
-                  <td style={tdStyle}>{row.allocation}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {inputErrors.length > 0 && (
+        <div style={{ background: "#ffeded", color: "#c00", borderRadius: 6, padding: 12, marginBottom: 16 }}>
+          <strong>Input Error{inputErrors.length > 1 ? "s" : ""}:</strong>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {inputErrors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
         </div>
       )}
-
-      {/* --- Results Table --- */}
       {result && (
         <div
           style={{
