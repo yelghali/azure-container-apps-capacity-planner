@@ -942,7 +942,7 @@ export default function Home() {
           <p>
             <strong>Estimated IPs Used during peak hours:</strong> {result.ips}
           </p>
-     
+          <br />
           {result.details && (
             <p>
               <strong>Details:</strong> {result.details}
