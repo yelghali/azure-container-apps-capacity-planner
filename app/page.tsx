@@ -521,6 +521,21 @@ export default function Home() {
     setInputErrors([]); // clear any previous error
   };
 
+  const handlePlanChoiceChange = (value: PlanChoice) => {
+    setPlanChoice(value);
+    if (value !== "Mix") {
+      setApps((prev) =>
+        prev.map((app) => {
+          const { plan, ...rest } = app;
+          return {
+            ...rest,
+            plan: value,
+          };
+        })
+      );
+    }
+  };
+
   return (
     <main style={{ maxWidth: 1100, margin: "2rem auto", fontFamily: "sans-serif" }}>
       {/* How it works button and modal */}
