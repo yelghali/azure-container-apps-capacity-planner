@@ -759,7 +759,7 @@ export default function Home() {
         Enter your subnet size and app requirements to estimate the best Azure plan and IP usage.
       </p>
       <form
-        onSubmit={e => e.preventDefault()}
+        onSubmit={handleSubmit}
         style={{
           background: "#fff",
           padding: 24,
@@ -1011,6 +1011,23 @@ export default function Home() {
         </button>
         <div>
           <button
+            type="submit"
+            style={{
+              background: "#0078d4",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              padding: "10px 24px",
+              fontWeight: 600,
+              fontSize: 16,
+              cursor: "pointer",
+              marginTop: 8,
+              marginRight: 12,
+            }}
+          >
+            Calculate
+          </button>
+          <button
             type="button"
             onClick={handleSuggestCompute}
             style={{
@@ -1068,25 +1085,6 @@ export default function Home() {
               ))}
             </tbody>
           </table>
-          <div>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              style={{
-                background: "#0078d4",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                padding: "10px 24px",
-                fontWeight: 600,
-                fontSize: 16,
-                cursor: "pointer",
-                marginTop: 24,
-              }}
-            >
-              Plan Capacities
-            </button>
-          </div>
         </div>
       )}
 
