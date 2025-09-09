@@ -310,6 +310,8 @@ export default function Home() {
     value: string
   ) => {
     const updated = [...apps];
+    let validationMessage = "";
+
     if (field === "name") {
       updated[idx][field] = value as AppInput[typeof field];
     } else if (field === "plan") {
@@ -325,22 +327,49 @@ export default function Home() {
       field === "replicas"
     ) {
       updated[idx][field] = Number(value) as AppInput[typeof field];
-      // If min or max changes, update baseline if not touched
-      if ((field === "replicas" || field === "minReplicas") && !updated[idx].baselineTouched) {
-        const min = field === "minReplicas" ? Number(value) : updated[idx].minReplicas;
-        const max = field === "replicas" ? Number(value) : updated[idx].replicas;
+
+      // --- Validation and auto-fix logic ---
+      // 1. If minReplicas > replicas, auto-fix and show message
+      if (field === "minReplicas" && updated[idx].minReplicas > updated[idx].replicas) {
+        updated[idx].replicas = updated[idx].minReplicas;
+        updated[idx].baselineReplicas = updated[idx].minReplicas;
+        updated[idx].baselineTouched = false;
+        validationMessage = `App ${updated[idx].name || idx + 1}: Min Replicas must be less than or equal to Max Replicas. Values have been auto-corrected.`;
+      }
+      if (field === "replicas" && updated[idx].minReplicas > updated[idx].replicas) {
+        updated[idx].minReplicas = updated[idx].replicas;
+        updated[idx].baselineReplicas = updated[idx].replicas;
+        updated[idx].baselineTouched = false;
+        validationMessage = `App ${updated[idx].name || idx + 1}: Min Replicas must be less than or equal to Max Replicas. Values have been auto-corrected.`;
+      }
+      // 2. If baseline < minReplicas, auto-fix and show message
+      if (updated[idx].baselineReplicas < updated[idx].minReplicas) {
+        updated[idx].baselineReplicas = updated[idx].minReplicas;
+        updated[idx].baselineTouched = false;
+        validationMessage = `App ${updated[idx].name || idx + 1}: Baseline Replicas must be at least equal to Min Replicas. Value has been auto-corrected.`;
+      }
+      // 3. If baseline > replicas, auto-fix and show message
+      if (updated[idx].baselineReplicas > updated[idx].replicas) {
+        updated[idx].baselineReplicas = updated[idx].replicas;
+        updated[idx].baselineTouched = false;
+        validationMessage = `App ${updated[idx].name || idx + 1}: Baseline Replicas must be at most equal to Max Replicas. Value has been auto-corrected.`;
+      }
+
+      // If min or max changes, update baseline if not touched and not already fixed above
+      if ((field === "replicas" || field === "minReplicas") && !updated[idx].baselineTouched && !validationMessage) {
+        const min = updated[idx].minReplicas;
+        const max = updated[idx].replicas;
         updated[idx].baselineReplicas = Math.round(min + (max - min) / 2);
       }
-      // If baseline is now out of range, reset touched flag and baseline
-      if (
-        updated[idx].baselineReplicas < updated[idx].minReplicas ||
-        updated[idx].baselineReplicas > updated[idx].replicas
-      ) {
-        updated[idx].baselineTouched = false;
-        updated[idx].baselineReplicas = Math.round(updated[idx].minReplicas + (updated[idx].replicas - updated[idx].minReplicas) / 2);
-      }
     }
+
     setApps(updated);
+
+    // Show validation message if any
+    if (validationMessage) {
+      setInputErrors([validationMessage]);
+      setTimeout(() => setInputErrors([]), 4000);
+    }
   };
 
   const addApp = () => {
