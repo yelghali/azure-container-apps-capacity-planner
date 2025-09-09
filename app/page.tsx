@@ -344,6 +344,9 @@ export default function Home() {
     apps.forEach((app, idx) => {
       const err = validateAppInput(app, planChoice);
       if (err) errors.push(`App ${app.name || idx + 1}: ${err}`);
+      // New checks:
+      if (app.cpu <= 0) errors.push(`App ${app.name || idx + 1}: CPU must be greater than 0.`);
+      if (app.ram <= 0) errors.push(`App ${app.name || idx + 1}: RAM must be greater than 0.`);
     });
     setInputErrors(errors);
     if (errors.length > 0) return;
