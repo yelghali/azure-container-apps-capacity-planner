@@ -568,6 +568,24 @@ export default function Home() {
 
   return (
     <main style={{ maxWidth: 1100, margin: "2rem auto", fontFamily: "sans-serif" }}>
+      {/* Show validation errors if any */}
+      {inputErrors.length > 0 && (
+        <div style={{
+          background: "#ffeaea",
+          color: "#c00",
+          border: "1px solid #c00",
+          borderRadius: 6,
+          padding: "12px 18px",
+          marginBottom: 18,
+          fontWeight: 600
+        }}>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {inputErrors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {/* ...existing code... */}
     </main>
   );
