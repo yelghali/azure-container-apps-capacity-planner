@@ -938,6 +938,7 @@ export default function Home() {
           
           {/* Final Results Table */}
           <h3 style={{ marginTop: 24 }}>Planning for Peak usage (based on MaxReplicas)</h3>
+          <br />
           <p>
             <strong>Estimated IPs Used during peak hours:</strong> {result.ips}
           </p>
