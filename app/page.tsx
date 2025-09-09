@@ -492,8 +492,14 @@ export default function Home() {
     setApps(apps.filter((_, i) => i !== idx));
   };
 
+  // Remove validation from handleSubmit, keep only setResult
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setResult(calculate(apps, subnetSize, planChoice));
+  };
+
+  // Move validation to handleSuggestCompute
+  const handleSuggestCompute = () => {
     // Validate all apps
     const errors: string[] = [];
     apps.forEach((app, idx) => {
@@ -507,31 +513,10 @@ export default function Home() {
       }
     });
     setInputErrors(errors);
-    if (errors.length > 0) return;
-    setResult(calculate(apps, subnetSize, planChoice));
-  };
-
-  const handlePlanChoiceChange = (value: PlanChoice) => {
-    setPlanChoice(value);
-    if (value !== "Mix") {
-      setApps((prev) =>
-        prev.map((app) => {
-          const { plan, ...rest } = app;
-          return rest;
-        })
-      );
-    } else {
-      setApps((prev) =>
-        prev.map((app) => ({
-          ...app,
-          plan: "Consumption",
-        }))
-      );
+    if (errors.length > 0) {
+      setComputeAlloc(null); // clear previous allocation if any
+      return;
     }
-  };
-
-  // Add this handler for the Suggest Compute button
-  const handleSuggestCompute = () => {
     setComputeAlloc(suggestComputeAllocation(apps, planChoice));
     setInputErrors([]); // clear any previous error
   };
