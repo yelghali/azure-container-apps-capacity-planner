@@ -640,7 +640,7 @@ export default function Home() {
         </div>
         <div style={{ marginBottom: 24, display: "flex", alignItems: "center", gap: 16 }}>
           <label htmlFor="subnet" style={{ fontWeight: 500, marginRight: 8 }}>
-            Subnet Size
+            ACA Environment Subnet Size
           </label>
           <input
             id="subnet"
