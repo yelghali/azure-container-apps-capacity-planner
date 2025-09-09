@@ -11,9 +11,10 @@ type AppInput = {
   gpu: number;
   ram: number;
   minReplicas: number;
-  baselineReplicas: number; // <-- add this
+  baselineReplicas: number;
   replicas: number;
   plan?: PlanType;
+  baselineTouched?: boolean; // <-- add this
 };
 
 const DEDICATED_NODE_TYPES = [
@@ -148,7 +149,7 @@ function getAppNodeAssignments(
 
 export default function Home() {
   const [apps, setApps] = useState<AppInput[]>([
-    { name: "", cpu: 0, gpu: 0, ram: 0, minReplicas: 1, baselineReplicas: 1, replicas: 1, plan: "Consumption" },
+    { name: "", cpu: 0, gpu: 0, ram: 0, minReplicas: 1, baselineReplicas: 1, replicas: 1, plan: "Consumption", baselineTouched: false },
   ]);
   const [subnetSize, setSubnetSize] = useState("");
   const [planChoice, setPlanChoice] = useState<PlanChoice>("Consumption");
@@ -313,30 +314,30 @@ export default function Home() {
       updated[idx][field] = value as AppInput[typeof field];
     } else if (field === "plan") {
       updated[idx][field] = value as PlanType;
+    } else if (field === "baselineReplicas") {
+      updated[idx][field] = Number(value) as AppInput[typeof field];
+      updated[idx].baselineTouched = true; // User manually changed baseline
     } else {
       updated[idx][field] = Number(value) as AppInput[typeof field];
-    }
-    // If max or min changes, update baseline if user hasn't overridden
-    if (field === "replicas" || field === "minReplicas") {
-      const min = field === "minReplicas" ? Number(value) : updated[idx].minReplicas;
-      const max = field === "replicas" ? Number(value) : updated[idx].replicas;
-      // Only auto-update if baseline equals old computed value or is out of new range
-      const oldBaseline = updated[idx].baselineReplicas;
-      const computed = Math.round(min + (max - min) / 2);
+      // If min or max changes, update baseline if not touched
+      if ((field === "replicas" || field === "minReplicas") && !updated[idx].baselineTouched) {
+        const min = field === "minReplicas" ? Number(value) : updated[idx].minReplicas;
+        const max = field === "replicas" ? Number(value) : updated[idx].replicas;
+        updated[idx].baselineReplicas = Math.round(min + (max - min) / 2);
+      }
+      // If baseline is now out of range, reset touched flag and baseline
       if (
-        oldBaseline === undefined ||
-        oldBaseline === Math.round(min + (max - min) / 2) ||
-        oldBaseline < min ||
-        oldBaseline > max
+        updated[idx].baselineReplicas < updated[idx].minReplicas ||
+        updated[idx].baselineReplicas > updated[idx].replicas
       ) {
-        updated[idx].baselineReplicas = computed;
+        updated[idx].baselineTouched = false;
+        updated[idx].baselineReplicas = Math.round(updated[idx].minReplicas + (updated[idx].replicas - updated[idx].minReplicas) / 2);
       }
     }
     setApps(updated);
   };
 
   const addApp = () => {
-    // Default baseline = min + (max-min)/2
     const min = 1;
     const max = 1;
     const baseline = Math.round(min + (max - min) / 2);
@@ -351,6 +352,7 @@ export default function Home() {
         baselineReplicas: baseline,
         replicas: max,
         plan: planChoice === "Mix" ? "Consumption" : undefined,
+        baselineTouched: false,
       },
     ]);
   };
@@ -369,6 +371,9 @@ export default function Home() {
       if (app.cpu <= 0) errors.push(`App ${app.name || idx + 1}: CPU must be greater than 0.`);
       if (app.ram <= 0) errors.push(`App ${app.name || idx + 1}: RAM must be greater than 0.`);
       if (app.minReplicas > app.replicas) errors.push(`App ${app.name || idx + 1}: Min Replicas must be less than or equal to Max Replicas.`);
+      if (app.baselineReplicas < app.minReplicas || app.baselineReplicas > app.replicas) {
+        errors.push(`App ${app.name || idx + 1}: Baseline Replicas must be between Min and Max Replicas.`);
+      }
     });
     setInputErrors(errors);
     if (errors.length > 0) return;
